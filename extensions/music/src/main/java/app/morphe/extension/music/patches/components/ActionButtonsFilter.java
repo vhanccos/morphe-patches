@@ -54,6 +54,14 @@ public final class ActionButtonsFilter extends Filter {
     private static final String SHARE_MARKER = "timestamp_share_switch_button_entity_key";
     private static final String RADIO_MARKER = "RDAMVM";
 
+    // Icon markers used as a fallback when a button is disabled for the current track and
+    // therefore has no endpoint id in its proto buffer. Every button still carries its own
+    // icon as data, and the icon lives in the first ~500 bytes of the buffer, well before
+    // the shared icon catalogue that trails at the end.
+    private static final String COMMENTS_ICON = "_text_bubble_";
+    private static final String LYRICS_ICON = "_quote_";
+    private static final int ICON_SCAN_HEAD_LIMIT = 500;
+
     private final StringFilterGroup actionBar;
     private final StringFilterGroup genericActionButton;
 
@@ -245,6 +253,13 @@ public final class ActionButtonsFilter extends Filter {
         if (contents.contains(LYRICS_MARKER)) return Settings.HIDE_LYRICS_BUTTON.get();
         if (contents.contains(SHARE_MARKER)) return Settings.HIDE_SHARE_BUTTON.get();
         if (contents.contains(RADIO_MARKER)) return Settings.HIDE_RADIO_BUTTON.get();
+        // Fallback for buttons that are disabled for this track: no endpoint id is present,
+        // so classify by the button's own icon which sits in the buffer head, before the
+        // shared icon catalogue.
+        String head = contents.length() > ICON_SCAN_HEAD_LIMIT
+                ? contents.substring(0, ICON_SCAN_HEAD_LIMIT) : contents;
+        if (head.contains(COMMENTS_ICON)) return Settings.HIDE_COMMENTS_BUTTON.get();
+        if (head.contains(LYRICS_ICON)) return Settings.HIDE_LYRICS_BUTTON.get();
         // Save button has no unique endpoint marker of its own; it's the fall-through.
         return Settings.HIDE_SAVE_BUTTON.get();
     }
