@@ -5,7 +5,7 @@
  * See the included NOTICE file for GPLv3 §7(b) and §7(c) terms that apply to this code.
  */
 
-package app.morphe.patches.music.layout.hide.actionbuttons
+package app.morphe.patches.music.layout.buttons.action
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
@@ -31,7 +31,7 @@ private const val EXTENSION_BUTTON_PROTO_INTERFACE =
     $$"Lapp/morphe/extension/music/patches/components/MusicActionButtonsFilter$ButtonProtoBufferInterface;"
 
 @Suppress("unused")
-val hideActionButtonsPatch = bytecodePatch(
+val hideMusicActionButtonsPatch = bytecodePatch(
     name = "Hide music action buttons",
     description = "Adds options to hide action buttons under the player."
 ) {
