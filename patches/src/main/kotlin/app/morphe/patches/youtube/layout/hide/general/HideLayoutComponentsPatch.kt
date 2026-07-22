@@ -75,6 +75,8 @@ private const val LAYOUT_COMPONENTS_FILTER =
     "Lapp/morphe/extension/youtube/patches/components/LayoutComponentsFilter;"
 private const val DESCRIPTION_COMPONENTS_FILTER =
     "Lapp/morphe/extension/youtube/patches/components/DescriptionComponentsFilter;"
+private const val EXPLORE_MENU_FILTER =
+    "Lapp/morphe/extension/youtube/patches/components/ExploreMenuFilter;"
 private const val COMMENTS_FILTER =
     "Lapp/morphe/extension/youtube/patches/components/CommentsFilter;"
 private const val CUSTOM_FILTER =
@@ -194,6 +196,31 @@ val hideLayoutComponentsPatch = bytecodePatch(
         )
 
         PreferenceScreen.FEED.addPreferences(
+            PreferenceScreenPreference(
+                key = "morphe_explore_menu_screen",
+                sorting = Sorting.UNSORTED,
+                preferences = setOf(
+                    SwitchPreference("morphe_hide_shopping_menu"),
+                    SwitchPreference("morphe_hide_music_menu"),
+                    SwitchPreference("morphe_hide_movies_menu"),
+                    SwitchPreference("morphe_hide_hype_menu"),
+                    SwitchPreference("morphe_hide_live_menu"),
+                    SwitchPreference("morphe_hide_gaming_menu"),
+                    SwitchPreference("morphe_hide_news_menu"),
+                    SwitchPreference("morphe_hide_sports_menu"),
+                    SwitchPreference("morphe_hide_courses_menu"),
+                    SwitchPreference("morphe_hide_fashion_menu"),
+                    SwitchPreference("morphe_hide_podcasts_menu"),
+                    SwitchPreference("morphe_hide_playables_menu"),
+                    SwitchPreference("morphe_hide_memberships_menu"),
+                    SwitchPreference("morphe_hide_youtube_premium_menu"),
+                    SwitchPreference("morphe_hide_youtube_studio_menu"),
+                    SwitchPreference("morphe_hide_youtube_music_menu"),
+                    SwitchPreference("morphe_hide_youtube_kids_menu"),
+                    SwitchPreference("morphe_hide_youtube_create_menu"),
+                    SwitchPreference("morphe_hide_privacy_tos_footer")
+                )
+            ),
             PreferenceScreenPreference(
                 key = "morphe_hide_keyword_content_screen",
                 sorting = Sorting.UNSORTED,
@@ -393,6 +420,7 @@ val hideLayoutComponentsPatch = bytecodePatch(
 
         addLithoFilter(LAYOUT_COMPONENTS_FILTER)
         addLithoFilter(DESCRIPTION_COMPONENTS_FILTER)
+        addLithoFilter(EXPLORE_MENU_FILTER)
         addLithoFilter(COMMENTS_FILTER)
         addLithoFilter(KEYWORD_FILTER)
         addLithoFilter(AISLIST_FILTER)
