@@ -632,7 +632,7 @@ private fun MutableMethod.insertTimeHook(insertIndex: Int, descriptor: String) =
  * @param targetMethodClass The descriptor for the class to invoke when the player controller is created.
  * @param targetMethodName The name of the static method to invoke when the player controller is created.
  */
-internal fun onCreateHook(targetMethodClass: String, targetMethodName: String) =
+fun onCreateHook(targetMethodClass: String, targetMethodName: String) =
     playerInitMethodRef.get()!!.insert(
         playerInitInsertIndex++,
         "v$playerInitInsertRegister",

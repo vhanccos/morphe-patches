@@ -30,7 +30,7 @@ fun addPlayerBottomButton(descriptor: String) {
     )
 }
 
-internal val playerOverlayButtonsHookPatch = bytecodePatch {
+val playerOverlayButtonsHookPatch = bytecodePatch {
     dependsOn(
         sharedExtensionPatch,
         resourceMappingPatch, // Used by fingerprints.
