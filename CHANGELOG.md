@@ -1,3 +1,9 @@
+## [1.37.1](https://github.com/vhanccos/morphe-patches/compare/v1.37.0...v1.37.1) (2026-07-23)
+
+### 🐛 Bug Fixes
+
+* stop returning playerConfig for SABR (AVR) to fix stable volume ([acf4121](https://github.com/vhanccos/morphe-patches/commit/acf412150d1d59f8d51604390f8e4d1bff042717))
+
 ## [1.37.0](https://github.com/vhanccos/morphe-patches/compare/v1.36.0...v1.37.0) (2026-07-23)
 
 ### ✨ New Features
