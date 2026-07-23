@@ -315,13 +315,9 @@ public class StreamingDataRequest {
             byte[] streamingDataBuffer = responseBuilder.build().toByteArray();
             byte[] playerConfig = null;
 
-            // PlayerConfig from AVR includes audioConfig with loudnessDb and
-            // enablePerFormatLoudness, which overrides per-format loudnessDb
-            // and breaks stable volume. Stop returning it so YouTube uses
-            // per-format values like it does for other clients.
-            // if (clientType.requireSABR && playerResponse.hasPlayerConfig()) {
-            //     playerConfig = playerResponse.getPlayerConfig().toByteArray();
-            // }
+            if (clientType.requireSABR && playerResponse.hasPlayerConfig()) {
+                playerConfig = playerResponse.getPlayerConfig().toByteArray();
+            }
 
             return new StreamData(streamingDataBuffer, playerConfig);
         } catch (IOException ex) {
