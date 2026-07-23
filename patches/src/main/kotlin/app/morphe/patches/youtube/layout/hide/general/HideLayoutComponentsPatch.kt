@@ -200,6 +200,7 @@ val hideLayoutComponentsPatch = bytecodePatch(
                 key = "morphe_explore_menu_screen",
                 sorting = Sorting.UNSORTED,
                 preferences = setOf(
+                    SwitchPreference("morphe_hide_explore_button"),
                     SwitchPreference("morphe_hide_shopping_menu"),
                     SwitchPreference("morphe_hide_music_menu"),
                     SwitchPreference("morphe_hide_movies_menu"),

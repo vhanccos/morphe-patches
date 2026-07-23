@@ -206,6 +206,7 @@ Changes include:
     <string name="morphe_explore_menu_screen_title">Explore menu</string>
     <string name="morphe_explore_menu_screen_summary">Choose which components appear in the explore menu</string>
     <string name="morphe_hide_courses_menu_title">Hide Courses menu</string>
+    <string name="morphe_hide_explore_button_title">Hide Explore button</string>
     <string name="morphe_hide_fashion_menu_title">Hide \'Fashion &amp; Beauty\' menu</string>
     <string name="morphe_hide_gaming_menu_title">Hide Gaming menu</string>
     <string name="morphe_hide_hype_menu_title">Hide Hype menu</string>

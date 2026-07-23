@@ -21,6 +21,8 @@ public final class ExploreMenuFilter extends Filter {
     private final StringFilterGroup divider;
     private final StringFilterGroup exploreMenu;
     private final ByteArrayFilterGroupList exploreMenuGroupList = new ByteArrayFilterGroupList();
+    private final StringFilterGroup incognitoExploreButton;
+    private final ByteArrayFilterGroup incognitoExploreButtonBuffer;
 
     public ExploreMenuFilter() {
         divider = new StringFilterGroup(
@@ -121,12 +123,34 @@ public final class ExploreMenuFilter extends Filter {
                 )
         );
 
+        incognitoExploreButton = new StringFilterGroup(
+                Settings.HIDE_EXPLORE_BUTTON,
+                "|CellType|ContainerType|ContainerType|ContainerType|"
+        );
+
+        incognitoExploreButtonBuffer = new ByteArrayFilterGroup(
+                null,
+                "yt_outline_compass",
+                "yt_outline_experimental_compass"
+        );
+
+        final var moreDrawerButton = new StringFilterGroup(
+                Settings.HIDE_EXPLORE_BUTTON,
+                "more_drawer_button.e"
+        );
+
         final var privacyToS = new StringFilterGroup(
                 Settings.HIDE_PRIVACY_TOS_FOOTER,
                 "privacy_tos.e"
         );
 
-        addPathCallbacks(divider, exploreMenu, privacyToS);
+        addPathCallbacks(
+                divider,
+                exploreMenu,
+                incognitoExploreButton,
+                moreDrawerButton,
+                privacyToS
+        );
     }
 
     @Override
@@ -146,6 +170,10 @@ public final class ExploreMenuFilter extends Filter {
 
         if (matchedGroup == exploreMenu) {
             return path.startsWith("more_drawer.e") && exploreMenuGroupList.check(buffer).isFiltered();
+        }
+
+        if (matchedGroup == incognitoExploreButton) {
+            return path.startsWith("search_bar_entry_point.e") && incognitoExploreButtonBuffer.check(buffer).isFiltered();
         }
 
         return true;
