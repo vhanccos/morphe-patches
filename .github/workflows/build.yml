@@ -2,15 +2,15 @@ name: Build patches
 
 on:
   push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -34,3 +34,13 @@ jobs:
         with:
           name: patches-mpp
           path: patches/build/libs/patches-*.mpp
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(date +%Y%m%d-%H%M%S)"
+          gh release create "$TAG" \
+            patches/build/libs/patches-*.mpp \
+            --title "Build $TAG" \
+            --notes "Automated build from main branch"
