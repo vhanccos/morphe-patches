@@ -705,7 +705,6 @@ fun videoSpeedChangedHook(targetMethodClass: String, targetMethodName: String) {
     )
 }
 
-
 /**
  * Hook the video speed selected by the user.
  */
