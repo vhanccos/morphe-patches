@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-07-23T16:00:14",
-  "description": "## [1.37.1](https://github.com/vhanccos/morphe-patches/compare/v1.37.0...v1.37.1) (2026-07-23)\n\n### 🐛 Bug Fixes\n\n* stop returning playerConfig for SABR (AVR) to fix stable volume ([acf4121](https://github.com/vhanccos/morphe-patches/commit/acf412150d1d59f8d51604390f8e4d1bff042717))",
-  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.37.1/patches-1.37.1.mpp",
+  "created_at": "2026-07-23T16:23:48",
+  "description": "## [1.37.2](https://github.com/vhanccos/morphe-patches/compare/v1.37.1...v1.37.2) (2026-07-23)",
+  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.37.2/patches-1.37.2.mpp",
   "signature_download_url": "",
-  "version": "1.37.1"
+  "version": "1.37.2"
 }

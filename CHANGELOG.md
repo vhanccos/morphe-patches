@@ -1,3 +1,5 @@
+## [1.37.2](https://github.com/vhanccos/morphe-patches/compare/v1.37.1...v1.37.2) (2026-07-23)
+
 ## [1.37.1](https://github.com/vhanccos/morphe-patches/compare/v1.37.0...v1.37.1) (2026-07-23)
 
 ### 🐛 Bug Fixes
