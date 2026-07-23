@@ -1,3 +1,9 @@
+## [1.37.0](https://github.com/vhanccos/morphe-patches/compare/v1.36.0...v1.37.0) (2026-07-23)
+
+### ✨ New Features
+
+* add restart app on long-press reload + fix scrobbling regex parent ([247c9ab](https://github.com/vhanccos/morphe-patches/commit/247c9ab421b58e368f458f7a24c5c424c255bf2b))
+
 ## [1.36.0](https://github.com/MorpheApp/morphe-patches/compare/v1.35.0...v1.36.0) (2026-07-23)
 
 ### 🐛 Bug Fixes
