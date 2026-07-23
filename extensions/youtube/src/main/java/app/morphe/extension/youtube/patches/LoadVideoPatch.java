@@ -161,6 +161,55 @@ public final class LoadVideoPatch {
         }
     }
 
+    /**
+     * Restarts the app completely and loads the current video at its timestamp.
+     * Long-press target for the reload video button.
+     */
+    public static void restartApp() {
+        try {
+            Context context = getContext();
+            if (context == null) return;
+
+            String videoId = "";
+            String playlistId = "";
+            long videoTime = 0;
+
+            // Try to capture the current video info before restarting.
+            if (!PlayerType.getCurrent().isNoneOrHidden()) {
+                videoId = VideoInformation.lastPlayerResponseIsShort()
+                        ? VideoInformation.getVideoId()
+                        : VideoInformation.getPlayerResponseVideoId();
+                playlistId = VideoInformation.getPlaylistId();
+                videoTime = VideoInformation.getVideoTime();
+            }
+
+            // Build a YouTube URL with the current video and timestamp.
+            StringBuilder urlBuilder = new StringBuilder("https://www.youtube.com/watch?v=");
+            if (!videoId.isEmpty()) {
+                urlBuilder.append(videoId);
+                if (!playlistId.isEmpty()) {
+                    urlBuilder.append("&list=").append(playlistId);
+                }
+                if (videoTime > 0) {
+                    urlBuilder.append("&t=").append(videoTime / 1000).append('s');
+                }
+            }
+
+            Intent intent = new Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse(urlBuilder.toString())
+            );
+            intent.setPackage(context.getPackageName());
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            context.startActivity(intent);
+
+            // Gracefully exit the current process so the activity restarts fresh.
+            System.exit(0);
+        } catch (Exception ex) {
+            Logger.printException(() -> "Failed to restart app", ex);
+        }
+    }
+
     private static boolean checkDismissPlayerAvailability(PlayerInterface playerInterface) {
         if (playerInterface == null) {
             Utils.showToastShort(str("morphe_dismiss_player_not_available_toast"));
