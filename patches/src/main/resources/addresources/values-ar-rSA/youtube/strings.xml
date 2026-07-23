@@ -760,7 +760,7 @@ Mistral Nemo هو الخيار الأرخص، بينما توفر Gemma 4 أعل
   <string name="morphe_hide_shorts_super_thanks_button_title">إخفاء زر \'شراء Super Thanks\'</string>
   <string name="morphe_hide_shorts_effect_button_title">إخفاء زر التأثير</string>
   <string name="morphe_hide_shorts_green_screen_button_title">إخفاء زر \'الشاشة الخضراء\'</string>
-  <string name="morphe_hide_shorts_hashtag_button_title">إخفاء زر هاشتاج</string>
+  <string name="morphe_hide_shorts_hashtag_button_title">إخفاء زر هاشتاغ</string>
   <!-- 'Join' should be translated using the same localized wording YouTube displays for the button. -->
   <string name="morphe_hide_shorts_join_button_title">إخفاء زر الانضمام</string>
   <string name="morphe_hide_shorts_live_preview_title">إخفاء مشاهدة البث المباشر</string>
