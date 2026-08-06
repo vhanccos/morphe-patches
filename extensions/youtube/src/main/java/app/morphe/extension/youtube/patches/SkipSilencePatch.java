@@ -1,6 +1,7 @@
 package app.morphe.extension.youtube.patches;
 
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import app.morphe.extension.shared.Logger;
@@ -15,7 +16,7 @@ public final class SkipSilencePatch {
 
     /**
      * Injection point.
-     * Called when the AudioSink / ExoPlayer audio renderer is initialized.
+     * Called when the AudioSink / ExoPlayer audio renderer sets playback params or initializes.
      */
     public static void setAudioSink(Object audioSink) {
         if (audioSink == null) return;
@@ -49,16 +50,10 @@ public final class SkipSilencePatch {
             final Object audioSink = audioSinkRef.get();
             if (audioSink == null) return;
 
-            boolean applied = false;
-            try {
-                Method method = audioSink.getClass().getMethod("setSkipSilenceEnabled", boolean.class);
-                method.setAccessible(true);
-                method.invoke(audioSink, enabled);
-                applied = true;
-            } catch (Exception ignored) {}
-
-            if (!applied) {
-                for (Method method : audioSink.getClass().getDeclaredMethods()) {
+            Class<?> clazz = audioSink.getClass();
+            while (clazz != null && clazz != Object.class) {
+                // 1. Try methods named setSkipSilenceEnabled or single boolean param setters
+                for (Method method : clazz.getDeclaredMethods()) {
                     if (method.getParameterTypes().length == 1
                             && method.getParameterTypes()[0] == boolean.class
                             && method.getReturnType() == void.class) {
@@ -68,6 +63,18 @@ public final class SkipSilencePatch {
                         } catch (Exception ignored) {}
                     }
                 }
+
+                // 2. Try boolean fields on AudioSink
+                for (Field field : clazz.getDeclaredFields()) {
+                    if (field.getType() == boolean.class) {
+                        try {
+                            field.setAccessible(true);
+                            field.setBoolean(audioSink, enabled);
+                        } catch (Exception ignored) {}
+                    }
+                }
+
+                clazz = clazz.getSuperclass();
             }
         } catch (Exception ex) {
             Logger.printException(() -> "applySkipSilence failure", ex);

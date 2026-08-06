@@ -20,7 +20,7 @@ import app.morphe.patcher.string
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 
-private object AudioSinkSetSpeedMethodFingerprint : Fingerprint(
+internal object AudioSinkSetSpeedMethodFingerprint : Fingerprint(
     returnType = "V",
     parameters = listOf(),
     filters = listOf(
