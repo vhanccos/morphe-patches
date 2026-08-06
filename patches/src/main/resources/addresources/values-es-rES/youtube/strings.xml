@@ -416,6 +416,9 @@ Su clave API nunca debe compartirse. Cualquiera que tenga acceso a ella puede us
   <string name="morphe_skip_silence_button_title">Mostrar botón de aumentar velocidad en silencio</string>
   <string name="morphe_skip_silence_button_toast_on">Aumentar velocidad en silencio activado</string>
   <string name="morphe_skip_silence_button_toast_off">Aumentar velocidad en silencio desactivado</string>
+  <string name="morphe_mono_audio_button_title">Mostrar botón de audio mono</string>
+  <string name="morphe_mono_audio_button_toast_on">Audio mono activado</string>
+  <string name="morphe_mono_audio_button_toast_off">Audio mono desactivado</string>
   <!-- interaction.playall.playAllButtonPatch -->
   <string name="morphe_play_all_button_title">Mostrar botón \"Reproducir todo\"</string>
   <string name="morphe_play_all_button_summary">"Toca para generar una lista de reproducción de todos los vídeos del canal. Toca y mantén pulsado para deshacer.

@@ -458,6 +458,9 @@ Your API key should never be shared. Anyone with access to it can use your OpenR
     <string name="morphe_skip_silence_button_title">Show Skip silence button</string>
     <string name="morphe_skip_silence_button_toast_on">Fast forward in silence is on</string>
     <string name="morphe_skip_silence_button_toast_off">Fast forward in silence is off</string>
+    <string name="morphe_mono_audio_button_title">Show Mono audio button</string>
+    <string name="morphe_mono_audio_button_toast_on">Mono audio is on</string>
+    <string name="morphe_mono_audio_button_toast_off">Mono audio is off</string>
 
     <!-- interaction.playall.playAllButtonPatch -->
     <string name="morphe_play_all_button_title">Show Play all button</string>
