@@ -90,7 +90,7 @@ val skipSilenceButtonPatch = bytecodePatch(
         AudioSinkSetVolumeFingerprint.method.addInstructions(
             0,
             """
-                invoke-static { p0 }, $EXTENSION_PATCH->setAudioSink(Ljava/lang.Object;)V
+                invoke-static { p0 }, $EXTENSION_PATCH->setAudioSink(Ljava/lang/Object;)V
             """
         )
     }
