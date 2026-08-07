@@ -9,7 +9,7 @@ import java.lang.reflect.Method;
 import app.morphe.extension.youtube.settings.Settings;
 
 /**
- * Robust extension logic for skipping silence in ExoPlayer with detailed Logcat logging.
+ * Robust extension logic for skipping silence in ExoPlayer with recursive audio wrapper object scanning.
  */
 public final class SkipSilencePatch {
 
@@ -18,7 +18,7 @@ public final class SkipSilencePatch {
 
     /**
      * Injection point.
-     * Called when YouTube ExoPlayer's DefaultAudioSink setVolume is invoked.
+     * Called when YouTube ExoPlayer initializes the AudioTrack wrapper / audio output object.
      */
     public static void setAudioSink(Object audioSink) {
         if (audioSink == null) {
@@ -26,7 +26,7 @@ public final class SkipSilencePatch {
             return;
         }
         audioSinkRef = new WeakReference<>(audioSink);
-        Log.i(TAG, "setAudioSink captured: " + audioSink.getClass().getName());
+        Log.i(TAG, "setAudioSink captured root object: " + audioSink.getClass().getName());
         applySkipSilence();
     }
 
@@ -55,71 +55,56 @@ public final class SkipSilencePatch {
     public static void applySkipSilence() {
         try {
             final boolean enabled = isSkipSilenceEnabled();
-            final Object audioSink = audioSinkRef.get();
+            final Object root = audioSinkRef.get();
 
-            if (audioSink == null) {
+            if (root == null) {
                 Log.w(TAG, "applySkipSilence: audioSink reference is NULL (not captured yet)");
                 return;
             }
 
-            Log.i(TAG, "applySkipSilence: Applying enabled=" + enabled + " to class " + audioSink.getClass().getName());
+            Log.i(TAG, "applySkipSilence: Applying enabled=" + enabled + " on root " + root.getClass().getName());
+            scanAndApply(root, enabled, 0);
+        } catch (Exception ex) {
+            Log.e(TAG, "applySkipSilence: Critical exception occurred", ex);
+        }
+    }
 
-            boolean success = false;
-            Class<?> clazz = audioSink.getClass();
-            while (clazz != null && clazz != Object.class) {
-                Log.d(TAG, "Inspecting class: " + clazz.getName());
+    private static void scanAndApply(Object target, boolean enabled, int depth) {
+        if (target == null || depth > 3) return;
 
-                // 1. Inspect fields of DefaultAudioSink
-                Field[] fields = clazz.getDeclaredFields();
-                for (Field field : fields) {
-                    try {
-                        field.setAccessible(true);
-                        Object fieldValue = field.get(audioSink);
-                        if (fieldValue != null && !fieldValue.getClass().isPrimitive()) {
-                            String fieldClassName = fieldValue.getClass().getName();
-                            Method[] fieldMethods = fieldValue.getClass().getDeclaredMethods();
-                            for (Method m : fieldMethods) {
-                                if (m.getParameterTypes().length == 1 && m.getParameterTypes()[0] == boolean.class) {
-                                    try {
-                                        m.setAccessible(true);
-                                        m.invoke(fieldValue, enabled);
-                                        success = true;
-                                        Log.i(TAG, "Successfully invoked " + m.getName() + "(" + enabled + ") on field " + field.getName() + " of type " + fieldClassName);
-                                    } catch (Exception ex) {
-                                        Log.e(TAG, "Error invoking " + m.getName() + " on field " + field.getName(), ex);
-                                    }
-                                }
-                            }
-                        }
-                    } catch (Exception ignored) {}
-                }
-
-                // 2. Also invoke boolean setters on DefaultAudioSink if method name contains "silence"
-                Method[] methods = clazz.getDeclaredMethods();
-                for (Method method : methods) {
-                    if (method.getParameterTypes().length == 1 && method.getParameterTypes()[0] == boolean.class) {
-                        String name = method.getName().toLowerCase();
-                        if (name.contains("silence")) {
-                            try {
-                                method.setAccessible(true);
-                                method.invoke(audioSink, enabled);
-                                success = true;
-                                Log.i(TAG, "Successfully invoked method " + method.getName() + "(" + enabled + ") on " + audioSink.getClass().getName());
-                            } catch (Exception ex) {
-                                Log.e(TAG, "Error invoking method " + method.getName(), ex);
-                            }
+        Class<?> clazz = target.getClass();
+        while (clazz != null && clazz != Object.class) {
+            // 1. Invoke single-boolean methods on target containing "silence" or matching SilenceSkippingAudioProcessor
+            for (Method m : clazz.getDeclaredMethods()) {
+                if (m.getParameterTypes().length == 1 && m.getParameterTypes()[0] == boolean.class) {
+                    String name = m.getName().toLowerCase();
+                    if (name.contains("silence") || clazz.getName().toLowerCase().contains("silence")) {
+                        try {
+                            m.setAccessible(true);
+                            m.invoke(target, enabled);
+                            Log.i(TAG, "Successfully invoked " + m.getName() + "(" + enabled + ") on " + clazz.getName());
+                        } catch (Exception ex) {
+                            Log.e(TAG, "Failed invoking " + m.getName() + " on " + clazz.getName(), ex);
                         }
                     }
                 }
-
-                clazz = clazz.getSuperclass();
             }
 
-            if (!success) {
-                Log.w(TAG, "applySkipSilence: No matching method or field was found to apply skip silence.");
+            // 2. Recursively inspect sub-fields
+            for (Field f : clazz.getDeclaredFields()) {
+                try {
+                    f.setAccessible(true);
+                    Object child = f.get(target);
+                    if (child != null && !child.getClass().isPrimitive() && !child.getClass().getName().startsWith("java.lang.")) {
+                        String childClassName = child.getClass().getName().toLowerCase();
+                        if (childClassName.contains("silence") || childClassName.contains("sink") || childClassName.contains("processor") || childClassName.contains("audio")) {
+                            scanAndApply(child, enabled, depth + 1);
+                        }
+                    }
+                } catch (Exception ignored) {}
             }
-        } catch (Exception ex) {
-            Log.e(TAG, "applySkipSilence: Critical exception occurred", ex);
+
+            clazz = clazz.getSuperclass();
         }
     }
 }
