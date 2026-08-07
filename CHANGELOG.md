@@ -1,3 +1,10 @@
+## [1.38.5](https://github.com/vhanccos/morphe-patches/compare/v1.38.4...v1.38.5) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** refine SkipSilencePatch reflection to target SilenceSkippingAudioProcessor fields ([803d9d1](https://github.com/vhanccos/morphe-patches/commit/803d9d1296c498ee16244e37734f725193b5030e))
+* **youtube:** update SkipSilencePatch for robust obfuscated field inspection ([bea0bbd](https://github.com/vhanccos/morphe-patches/commit/bea0bbd58f8d7ad054f2021ccc51db58764128e1))
+
 ## [1.38.4](https://github.com/vhanccos/morphe-patches/compare/v1.38.3...v1.38.4) (2026-08-07)
 
 ### 🐛 Bug Fixes
