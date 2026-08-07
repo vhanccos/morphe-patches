@@ -1,3 +1,9 @@
+## [1.39.2](https://github.com/vhanccos/morphe-patches/compare/v1.39.1...v1.39.2) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** use Landroid/media/AudioTrack; parameter in SkipSilenceButtonPatch ([11b2ea7](https://github.com/vhanccos/morphe-patches/commit/11b2ea7bf28561f1e9968481ad6f1c063ae4d032))
+
 ## [1.39.1](https://github.com/vhanccos/morphe-patches/compare/v1.39.0...v1.39.1) (2026-08-07)
 
 ### 🐛 Bug Fixes
