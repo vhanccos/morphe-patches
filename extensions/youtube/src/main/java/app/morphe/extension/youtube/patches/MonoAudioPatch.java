@@ -52,9 +52,9 @@ public final class MonoAudioPatch {
 
             try {
                 if (enabled) {
-                    track.setStereoVolume(1.0f, 1.0f);
+                    track.setVolume(1.0f);
                 } else {
-                    track.setStereoVolume(1.0f, 1.0f);
+                    track.setVolume(1.0f);
                 }
             } catch (Exception ignored) {}
         } catch (Exception ex) {

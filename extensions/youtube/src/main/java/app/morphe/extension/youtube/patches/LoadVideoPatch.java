@@ -166,7 +166,7 @@ public final class LoadVideoPatch {
      */
     public static void restartApp() {
         try {
-            Context context = getContext();
+            Context context = Utils.getContext();
             if (context == null) return;
 
             String videoId = "";
