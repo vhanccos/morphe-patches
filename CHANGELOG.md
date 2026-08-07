@@ -1,3 +1,9 @@
+## [1.39.5](https://github.com/vhanccos/morphe-patches/compare/v1.39.4...v1.39.5) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** hook AudioSinkSetVolumeFingerprint correctly (same as VoT patch) + diagnostic dump ([0b8a708](https://github.com/vhanccos/morphe-patches/commit/0b8a708892ac878ae18af4063d494adcc70504d5))
+
 ## [1.39.4](https://github.com/vhanccos/morphe-patches/compare/v1.39.3...v1.39.4) (2026-08-07)
 
 ### 🐛 Bug Fixes
