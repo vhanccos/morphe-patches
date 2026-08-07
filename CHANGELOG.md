@@ -1,3 +1,9 @@
+## [1.39.4](https://github.com/vhanccos/morphe-patches/compare/v1.39.3...v1.39.4) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** safely identify SilenceSkippingAudioProcessor candidate by field types ([9319247](https://github.com/vhanccos/morphe-patches/commit/9319247c47480e313893c4ea6a5fdac863b5780a))
+
 ## [1.39.3](https://github.com/vhanccos/morphe-patches/compare/v1.39.2...v1.39.3) (2026-08-07)
 
 ### 🐛 Bug Fixes
