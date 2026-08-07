@@ -38,7 +38,7 @@ public class ReloadVideoButton {
                     Settings.RELOAD_VIDEO_BUTTON,
                     v -> LoadVideoPatch.initializeReloadVideo(),
                     v -> {
-                        Utils.restartApp(v.getContext());
+                        LoadVideoPatch.restartApp();
                         return true;
                     }
             );
