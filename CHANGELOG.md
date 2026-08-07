@@ -1,3 +1,9 @@
+## [1.39.6](https://github.com/vhanccos/morphe-patches/compare/v1.39.5...v1.39.6) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** hook AudioSinkSetSpeedMethodFingerprint as primary capture point for DefaultAudioSink ([a0a4403](https://github.com/vhanccos/morphe-patches/commit/a0a44033a61ea51a2d8e6278241aa914a0801c0b))
+
 ## [1.39.5](https://github.com/vhanccos/morphe-patches/compare/v1.39.4...v1.39.5) (2026-08-07)
 
 ### 🐛 Bug Fixes
