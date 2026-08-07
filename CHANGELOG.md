@@ -1,3 +1,9 @@
+## [1.39.1](https://github.com/vhanccos/morphe-patches/compare/v1.39.0...v1.39.1) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** hook AudioTrackWrapperInitFingerprint to capture audio wrapper object on video init ([cc0e467](https://github.com/vhanccos/morphe-patches/commit/cc0e4679f6e33fde432fa243b942961e43794a47))
+
 ## [1.39.0](https://github.com/vhanccos/morphe-patches/compare/v1.38.5...v1.39.0) (2026-08-07)
 
 ### ✨ New Features
