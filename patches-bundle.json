@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-08-07T01:34:07",
-  "description": "## [1.38.3](https://github.com/vhanccos/morphe-patches/compare/v1.38.2...v1.38.3) (2026-08-07)\n\n### 🐛 Bug Fixes\n\n* **youtube:** use addInstructions for setAudioSink smali in SkipSilenceButtonPatch ([abe5d49](https://github.com/vhanccos/morphe-patches/commit/abe5d490a7cd8b21308441d7ecf983e8020124d4))",
-  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.38.3/patches-1.38.3.mpp",
+  "created_at": "2026-08-07T01:41:55",
+  "description": "## [1.38.4](https://github.com/vhanccos/morphe-patches/compare/v1.38.3...v1.38.4) (2026-08-07)\n\n### 🐛 Bug Fixes\n\n* **youtube:** fix typo in smali descriptor Ljava/lang/Object; in SkipSilenceButtonPatch ([3c7ea8d](https://github.com/vhanccos/morphe-patches/commit/3c7ea8d076c92618f758f27437b6b66a882b7db0))",
+  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.38.4/patches-1.38.4.mpp",
   "signature_download_url": "",
-  "version": "1.38.3"
+  "version": "1.38.4"
 }

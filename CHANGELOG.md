@@ -1,3 +1,9 @@
+## [1.38.4](https://github.com/vhanccos/morphe-patches/compare/v1.38.3...v1.38.4) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** fix typo in smali descriptor Ljava/lang/Object; in SkipSilenceButtonPatch ([3c7ea8d](https://github.com/vhanccos/morphe-patches/commit/3c7ea8d076c92618f758f27437b6b66a882b7db0))
+
 ## [1.38.3](https://github.com/vhanccos/morphe-patches/compare/v1.38.2...v1.38.3) (2026-08-07)
 
 ### 🐛 Bug Fixes
