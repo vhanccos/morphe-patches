@@ -1,3 +1,9 @@
+## [1.39.0](https://github.com/vhanccos/morphe-patches/compare/v1.38.5...v1.39.0) (2026-08-07)
+
+### ✨ New Features
+
+* **youtube:** add explicit Logcat logging under tag MorpheSkipSilence ([86b00da](https://github.com/vhanccos/morphe-patches/commit/86b00daf18f0fed35e66ad8ac083aab904e3561a))
+
 ## [1.38.5](https://github.com/vhanccos/morphe-patches/compare/v1.38.4...v1.38.5) (2026-08-07)
 
 ### 🐛 Bug Fixes

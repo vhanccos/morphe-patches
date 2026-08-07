@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-08-07T01:58:17",
-  "description": "## [1.38.5](https://github.com/vhanccos/morphe-patches/compare/v1.38.4...v1.38.5) (2026-08-07)\n\n### 🐛 Bug Fixes\n\n* **youtube:** refine SkipSilencePatch reflection to target SilenceSkippingAudioProcessor fields ([803d9d1](https://github.com/vhanccos/morphe-patches/commit/803d9d1296c498ee16244e37734f725193b5030e))\n* **youtube:** update SkipSilencePatch for robust obfuscated field inspection ([bea0bbd](https://github.com/vhanccos/morphe-patches/commit/bea0bbd58f8d7ad054f2021ccc51db58764128e1))",
-  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.38.5/patches-1.38.5.mpp",
+  "created_at": "2026-08-07T02:14:06",
+  "description": "## [1.39.0](https://github.com/vhanccos/morphe-patches/compare/v1.38.5...v1.39.0) (2026-08-07)\n\n### ✨ New Features\n\n* **youtube:** add explicit Logcat logging under tag MorpheSkipSilence ([86b00da](https://github.com/vhanccos/morphe-patches/commit/86b00daf18f0fed35e66ad8ac083aab904e3561a))",
+  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.39.0/patches-1.39.0.mpp",
   "signature_download_url": "",
-  "version": "1.38.5"
+  "version": "1.39.0"
 }
