@@ -1,3 +1,14 @@
+## [1.38.0](https://github.com/vhanccos/morphe-patches/compare/v1.37.1...v1.38.0) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** fix Utils.getContext() symbol in LoadVideoPatch ([b3c95b5](https://github.com/vhanccos/morphe-patches/commit/b3c95b5090165d7a4ef7a66079a0943067247cbf))
+
+### ✨ New Features
+
+* restore app restart on long-press reload + fix scrobbling regex parent ([bd69391](https://github.com/vhanccos/morphe-patches/commit/bd69391a1f2e9c75df84f7cca4f3e44b6c86397b))
+* **youtube:** add long press app restart to reload video button ([9407bba](https://github.com/vhanccos/morphe-patches/commit/9407bba39ed5790095700ff785e93f25f01417b1))
+
 ## [1.37.1](https://github.com/vhanccos/morphe-patches/compare/v1.37.0...v1.37.1) (2026-08-07)
 
 ### 🐛 Bug Fixes
