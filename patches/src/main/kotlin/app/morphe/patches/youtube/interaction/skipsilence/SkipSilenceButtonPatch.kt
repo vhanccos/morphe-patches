@@ -22,7 +22,7 @@ import app.morphe.patches.youtube.misc.playercontrols.legacyPlayerControlsPatch
 import app.morphe.patches.youtube.misc.playercontrols.legacyPlayerControlsResourcePatch
 import app.morphe.patches.youtube.misc.settings.settingsPatch
 import app.morphe.patches.youtube.shared.Constants.COMPATIBILITY_YOUTUBE
-import app.morphe.patches.youtube.video.voiceovertranslation.AudioTrackWrapperInitFingerprint
+import app.morphe.patches.youtube.video.voiceovertranslation.AudioSinkSetVolumeFingerprint
 import app.morphe.util.ResourceGroup
 import app.morphe.util.copyResources
 
@@ -86,9 +86,12 @@ val skipSilenceButtonPatch = bytecodePatch(
             0,
             "invoke-static { }, $EXTENSION_PATCH->resetSkipSilence()V"
         )
-        AudioTrackWrapperInitFingerprint.method.addInstruction(
+        // Hook the REAL DefaultAudioSink.setVolume(F)V method.
+        // p0 = fully initialized DefaultAudioSink instance.
+        // Same fingerprint that VotOriginalVolumeBytecodePatch uses successfully.
+        AudioSinkSetVolumeFingerprint.method.addInstruction(
             0,
-            "invoke-static { p0 }, $EXTENSION_PATCH->setAudioSink(Landroid/view/View;)V"
+            "invoke-static { p0 }, $EXTENSION_PATCH->setAudioSink(Ljava/lang/Object;)V"
         )
     }
 }
