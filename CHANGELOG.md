@@ -1,3 +1,9 @@
+## [1.38.1](https://github.com/vhanccos/morphe-patches/compare/v1.38.0...v1.38.1) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** replace AudioSinkSetSpeedMethodFingerprint with AudioTrackWrapperInitFingerprint in SkipSilenceButtonPatch ([fb23f17](https://github.com/vhanccos/morphe-patches/commit/fb23f1795440e27357f559c14d65dda80bae10e7))
+
 ## [1.38.0](https://github.com/vhanccos/morphe-patches/compare/v1.37.1...v1.38.0) (2026-08-07)
 
 ### 🐛 Bug Fixes
