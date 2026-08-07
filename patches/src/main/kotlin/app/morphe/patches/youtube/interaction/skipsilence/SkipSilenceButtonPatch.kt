@@ -88,7 +88,7 @@ val skipSilenceButtonPatch = bytecodePatch(
         )
         AudioTrackWrapperInitFingerprint.method.addInstruction(
             0,
-            "invoke-static { p1 }, $EXTENSION_PATCH->setAudioTrack(Landroid/media/AudioTrack;)V"
+            "invoke-static { p0 }, $EXTENSION_PATCH->setAudioSink(Landroid/view/View;)V"
         )
     }
 }
