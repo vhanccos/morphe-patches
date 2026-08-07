@@ -1,3 +1,9 @@
+## [1.39.3](https://github.com/vhanccos/morphe-patches/compare/v1.39.2...v1.39.3) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** capture cxj audio wrapper object p0 in setAudioSink ([e31beb4](https://github.com/vhanccos/morphe-patches/commit/e31beb4c86ca25eaceb08d9d88266db5bc8afd6d))
+
 ## [1.39.2](https://github.com/vhanccos/morphe-patches/compare/v1.39.1...v1.39.2) (2026-08-07)
 
 ### 🐛 Bug Fixes

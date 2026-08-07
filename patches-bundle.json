@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-08-07T02:38:11",
-  "description": "## [1.39.2](https://github.com/vhanccos/morphe-patches/compare/v1.39.1...v1.39.2) (2026-08-07)\n\n### 🐛 Bug Fixes\n\n* **youtube:** use Landroid/media/AudioTrack; parameter in SkipSilenceButtonPatch ([11b2ea7](https://github.com/vhanccos/morphe-patches/commit/11b2ea7bf28561f1e9968481ad6f1c063ae4d032))",
-  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.39.2/patches-1.39.2.mpp",
+  "created_at": "2026-08-07T02:47:57",
+  "description": "## [1.39.3](https://github.com/vhanccos/morphe-patches/compare/v1.39.2...v1.39.3) (2026-08-07)\n\n### 🐛 Bug Fixes\n\n* **youtube:** capture cxj audio wrapper object p0 in setAudioSink ([e31beb4](https://github.com/vhanccos/morphe-patches/commit/e31beb4c86ca25eaceb08d9d88266db5bc8afd6d))",
+  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.39.3/patches-1.39.3.mpp",
   "signature_download_url": "",
-  "version": "1.39.2"
+  "version": "1.39.3"
 }
