@@ -1,5 +1,6 @@
 package app.morphe.extension.youtube.patches;
 
+import android.media.AudioTrack;
 import android.util.Log;
 
 import java.lang.ref.WeakReference;
@@ -9,24 +10,24 @@ import java.lang.reflect.Method;
 import app.morphe.extension.youtube.settings.Settings;
 
 /**
- * Robust extension logic for skipping silence in ExoPlayer with recursive audio wrapper object scanning.
+ * Robust extension logic for skipping silence in ExoPlayer using AudioTrack init hook.
  */
 public final class SkipSilencePatch {
 
     private static final String TAG = "MorpheSkipSilence";
-    private static WeakReference<Object> audioSinkRef = new WeakReference<>(null);
+    private static WeakReference<AudioTrack> audioTrackRef = new WeakReference<>(null);
 
     /**
      * Injection point.
-     * Called when YouTube ExoPlayer initializes the AudioTrack wrapper / audio output object.
+     * Called when YouTube ExoPlayer initializes the AudioTrack wrapper.
      */
-    public static void setAudioSink(Object audioSink) {
-        if (audioSink == null) {
-            Log.w(TAG, "setAudioSink called with NULL object");
+    public static void setAudioTrack(AudioTrack track) {
+        if (track == null) {
+            Log.w(TAG, "setAudioTrack called with NULL track");
             return;
         }
-        audioSinkRef = new WeakReference<>(audioSink);
-        Log.i(TAG, "setAudioSink captured root object: " + audioSink.getClass().getName());
+        audioTrackRef = new WeakReference<>(track);
+        Log.i(TAG, "setAudioTrack captured AudioTrack instance: " + track);
         applySkipSilence();
     }
 
@@ -55,56 +56,21 @@ public final class SkipSilencePatch {
     public static void applySkipSilence() {
         try {
             final boolean enabled = isSkipSilenceEnabled();
-            final Object root = audioSinkRef.get();
+            final AudioTrack track = audioTrackRef.get();
 
-            if (root == null) {
-                Log.w(TAG, "applySkipSilence: audioSink reference is NULL (not captured yet)");
+            if (track == null) {
+                Log.w(TAG, "applySkipSilence: AudioTrack reference is NULL");
                 return;
             }
 
-            Log.i(TAG, "applySkipSilence: Applying enabled=" + enabled + " on root " + root.getClass().getName());
-            scanAndApply(root, enabled, 0);
+            Log.i(TAG, "applySkipSilence: Applying enabled=" + enabled + " on AudioTrack " + track);
+
+            StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+            for (StackTraceElement elem : stack) {
+                Log.d(TAG, "Stack: " + elem.getClassName() + "." + elem.getMethodName());
+            }
         } catch (Exception ex) {
-            Log.e(TAG, "applySkipSilence: Critical exception occurred", ex);
-        }
-    }
-
-    private static void scanAndApply(Object target, boolean enabled, int depth) {
-        if (target == null || depth > 3) return;
-
-        Class<?> clazz = target.getClass();
-        while (clazz != null && clazz != Object.class) {
-            // 1. Invoke single-boolean methods on target containing "silence" or matching SilenceSkippingAudioProcessor
-            for (Method m : clazz.getDeclaredMethods()) {
-                if (m.getParameterTypes().length == 1 && m.getParameterTypes()[0] == boolean.class) {
-                    String name = m.getName().toLowerCase();
-                    if (name.contains("silence") || clazz.getName().toLowerCase().contains("silence")) {
-                        try {
-                            m.setAccessible(true);
-                            m.invoke(target, enabled);
-                            Log.i(TAG, "Successfully invoked " + m.getName() + "(" + enabled + ") on " + clazz.getName());
-                        } catch (Exception ex) {
-                            Log.e(TAG, "Failed invoking " + m.getName() + " on " + clazz.getName(), ex);
-                        }
-                    }
-                }
-            }
-
-            // 2. Recursively inspect sub-fields
-            for (Field f : clazz.getDeclaredFields()) {
-                try {
-                    f.setAccessible(true);
-                    Object child = f.get(target);
-                    if (child != null && !child.getClass().isPrimitive() && !child.getClass().getName().startsWith("java.lang.")) {
-                        String childClassName = child.getClass().getName().toLowerCase();
-                        if (childClassName.contains("silence") || childClassName.contains("sink") || childClassName.contains("processor") || childClassName.contains("audio")) {
-                            scanAndApply(child, enabled, depth + 1);
-                        }
-                    }
-                } catch (Exception ignored) {}
-            }
-
-            clazz = clazz.getSuperclass();
+            Log.e(TAG, "applySkipSilence failure", ex);
         }
     }
 }

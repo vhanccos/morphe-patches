@@ -8,7 +8,6 @@
 package app.morphe.patches.youtube.interaction.skipsilence
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
-import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patches.shared.misc.settings.preference.SwitchPreference
@@ -87,11 +86,9 @@ val skipSilenceButtonPatch = bytecodePatch(
             0,
             "invoke-static { }, $EXTENSION_PATCH->resetSkipSilence()V"
         )
-        AudioTrackWrapperInitFingerprint.method.addInstructions(
+        AudioTrackWrapperInitFingerprint.method.addInstruction(
             0,
-            """
-                invoke-static { p0 }, $EXTENSION_PATCH->setAudioSink(Ljava/lang.Object;)V
-            """
+            "invoke-static { p1 }, $EXTENSION_PATCH->setAudioTrack(Landroid/media/AudioTrack;)V"
         )
     }
 }
