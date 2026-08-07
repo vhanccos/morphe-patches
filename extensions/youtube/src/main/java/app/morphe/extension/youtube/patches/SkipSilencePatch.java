@@ -1,5 +1,7 @@
 package app.morphe.extension.youtube.patches;
 
+import android.media.AudioTrack;
+
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -8,19 +10,19 @@ import app.morphe.extension.shared.Logger;
 import app.morphe.extension.youtube.settings.Settings;
 
 /**
- * Extension logic for skipping silence / fast forwarding in silence using ExoPlayer DefaultAudioSink.
+ * Extension logic for skipping silence / fast forwarding in silence using ExoPlayer.
  */
 public final class SkipSilencePatch {
 
-    private static WeakReference<Object> audioSinkRef = new WeakReference<>(null);
+    private static WeakReference<AudioTrack> audioTrackRef = new WeakReference<>(null);
 
     /**
      * Injection point.
-     * Called when YouTube ExoPlayer's DefaultAudioSink is active.
+     * Called when YouTube ExoPlayer initializes the AudioTrack wrapper.
      */
-    public static void setAudioSink(Object audioSink) {
-        if (audioSink == null) return;
-        audioSinkRef = new WeakReference<>(audioSink);
+    public static void setAudioTrack(AudioTrack track) {
+        if (track == null) return;
+        audioTrackRef = new WeakReference<>(track);
         applySkipSilence();
     }
 
@@ -47,33 +49,29 @@ public final class SkipSilencePatch {
     public static void applySkipSilence() {
         try {
             final boolean enabled = isSkipSilenceEnabled();
-            final Object audioSink = audioSinkRef.get();
-            if (audioSink == null) return;
+            final AudioTrack track = audioTrackRef.get();
+            if (track == null) return;
 
-            Class<?> clazz = audioSink.getClass();
+            Class<?> clazz = track.getClass();
             while (clazz != null && clazz != Object.class) {
-                // 1. Try method setSkipSilenceEnabled(boolean) or boolean single-parameter methods on DefaultAudioSink
                 for (Method method : clazz.getDeclaredMethods()) {
                     if (method.getParameterTypes().length == 1
                             && method.getParameterTypes()[0] == boolean.class
                             && method.getReturnType() == void.class) {
                         try {
                             method.setAccessible(true);
-                            method.invoke(audioSink, enabled);
+                            method.invoke(track, enabled);
                         } catch (Exception ignored) {}
                     }
                 }
-
-                // 2. Try boolean fields (e.g. skipSilenceEnabled) on DefaultAudioSink
                 for (Field field : clazz.getDeclaredFields()) {
                     if (field.getType() == boolean.class) {
                         try {
                             field.setAccessible(true);
-                            field.setBoolean(audioSink, enabled);
+                            field.setBoolean(track, enabled);
                         } catch (Exception ignored) {}
                     }
                 }
-
                 clazz = clazz.getSuperclass();
             }
         } catch (Exception ex) {
