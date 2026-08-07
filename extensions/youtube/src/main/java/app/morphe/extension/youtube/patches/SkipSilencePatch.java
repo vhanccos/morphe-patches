@@ -1,27 +1,26 @@
 package app.morphe.extension.youtube.patches;
 
-import android.media.AudioTrack;
-import android.media.PlaybackParams;
-
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 import app.morphe.extension.shared.Logger;
 import app.morphe.extension.youtube.settings.Settings;
 
 /**
- * Extension logic for skipping silence / fast forwarding in silence using ExoPlayer / AudioTrack.
+ * Extension logic for skipping silence / fast forwarding in silence using ExoPlayer DefaultAudioSink.
  */
 public final class SkipSilencePatch {
 
-    private static WeakReference<AudioTrack> audioTrackRef = new WeakReference<>(null);
+    private static WeakReference<Object> audioSinkRef = new WeakReference<>(null);
 
     /**
      * Injection point.
-     * Called when YouTube ExoPlayer initializes the AudioTrack wrapper.
+     * Called when YouTube ExoPlayer's DefaultAudioSink is active.
      */
-    public static void setAudioTrack(AudioTrack track) {
-        if (track == null) return;
-        audioTrackRef = new WeakReference<>(track);
+    public static void setAudioSink(Object audioSink) {
+        if (audioSink == null) return;
+        audioSinkRef = new WeakReference<>(audioSink);
         applySkipSilence();
     }
 
@@ -48,26 +47,35 @@ public final class SkipSilencePatch {
     public static void applySkipSilence() {
         try {
             final boolean enabled = isSkipSilenceEnabled();
-            final AudioTrack track = audioTrackRef.get();
-            if (track == null) return;
+            final Object audioSink = audioSinkRef.get();
+            if (audioSink == null) return;
 
-            try {
-                PlaybackParams params = track.getPlaybackParams();
-                if (params == null) {
-                    params = new PlaybackParams();
-                }
-                float currentSpeed = params.getSpeed();
-                if (enabled) {
-                    if (currentSpeed <= 1.0f) {
-                        params.setSpeed(2.0f);
-                    }
-                } else {
-                    if (currentSpeed > 1.0f && currentSpeed <= 2.0f) {
-                        params.setSpeed(1.0f);
+            Class<?> clazz = audioSink.getClass();
+            while (clazz != null && clazz != Object.class) {
+                // 1. Try method setSkipSilenceEnabled(boolean) or boolean single-parameter methods on DefaultAudioSink
+                for (Method method : clazz.getDeclaredMethods()) {
+                    if (method.getParameterTypes().length == 1
+                            && method.getParameterTypes()[0] == boolean.class
+                            && method.getReturnType() == void.class) {
+                        try {
+                            method.setAccessible(true);
+                            method.invoke(audioSink, enabled);
+                        } catch (Exception ignored) {}
                     }
                 }
-                track.setPlaybackParams(params);
-            } catch (Exception ignored) {}
+
+                // 2. Try boolean fields (e.g. skipSilenceEnabled) on DefaultAudioSink
+                for (Field field : clazz.getDeclaredFields()) {
+                    if (field.getType() == boolean.class) {
+                        try {
+                            field.setAccessible(true);
+                            field.setBoolean(audioSink, enabled);
+                        } catch (Exception ignored) {}
+                    }
+                }
+
+                clazz = clazz.getSuperclass();
+            }
         } catch (Exception ex) {
             Logger.printException(() -> "applySkipSilence failure", ex);
         }

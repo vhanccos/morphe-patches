@@ -22,7 +22,7 @@ import app.morphe.patches.youtube.misc.playercontrols.legacyPlayerControlsPatch
 import app.morphe.patches.youtube.misc.playercontrols.legacyPlayerControlsResourcePatch
 import app.morphe.patches.youtube.misc.settings.settingsPatch
 import app.morphe.patches.youtube.shared.Constants.COMPATIBILITY_YOUTUBE
-import app.morphe.patches.youtube.video.voiceovertranslation.AudioTrackWrapperInitFingerprint
+import app.morphe.patches.youtube.video.voiceovertranslation.AudioSinkSetSpeedMethodFingerprint
 import app.morphe.util.ResourceGroup
 import app.morphe.util.copyResources
 
@@ -86,9 +86,9 @@ val skipSilenceButtonPatch = bytecodePatch(
             0,
             "invoke-static { }, $EXTENSION_PATCH->resetSkipSilence()V"
         )
-        AudioTrackWrapperInitFingerprint.method.addInstruction(
+        AudioSinkSetSpeedMethodFingerprint.method.addInstruction(
             0,
-            "invoke-static { p1 }, $EXTENSION_PATCH->setAudioTrack(Landroid/media/AudioTrack;)V"
+            "invoke-static { p0 }, $EXTENSION_PATCH->setAudioSink(Ljava/lang.Object;)V"
         )
     }
 }
