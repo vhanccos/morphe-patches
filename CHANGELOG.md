@@ -1,3 +1,9 @@
+## [1.37.1](https://github.com/vhanccos/morphe-patches/compare/v1.37.0...v1.37.1) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** hook ExoPlayer DefaultAudioSink for skipSilenceEnabled ([d36d356](https://github.com/vhanccos/morphe-patches/commit/d36d356e5e5d59a056643fd02727b3458a53528b))
+
 ## [1.37.0](https://github.com/vhanccos/morphe-patches/compare/v1.36.0...v1.37.0) (2026-08-07)
 
 ### 🐛 Bug Fixes
