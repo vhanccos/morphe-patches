@@ -9,7 +9,7 @@ import java.lang.reflect.Method;
 import app.morphe.extension.youtube.settings.Settings;
 
 /**
- * Robust extension logic for skipping silence in ExoPlayer by capturing YouTube's cxj / AudioSink wrapper.
+ * Safe extension logic for skipping silence in ExoPlayer targeting SilenceSkippingAudioProcessor specifically.
  */
 public final class SkipSilencePatch {
 
@@ -63,35 +63,58 @@ public final class SkipSilencePatch {
     }
 
     private static void scanAndApply(Object target, boolean enabled, int depth) {
-        if (target == null || depth > 4) return;
+        if (target == null || depth > 3) return;
 
         Class<?> clazz = target.getClass();
         while (clazz != null && clazz != Object.class) {
-            Log.d(TAG, "Depth " + depth + " inspecting class: " + clazz.getName());
+            String className = clazz.getName().toLowerCase();
 
-            // 1. Try any boolean setter on target
-            for (Method m : clazz.getDeclaredMethods()) {
-                if (m.getParameterTypes().length == 1 && m.getParameterTypes()[0] == boolean.class) {
-                    try {
-                        m.setAccessible(true);
-                        m.invoke(target, enabled);
-                        Log.i(TAG, "Invoked " + m.getName() + "(" + enabled + ") on " + clazz.getName());
-                    } catch (Exception ex) {
-                        Log.d(TAG, "Method " + m.getName() + " skipped: " + ex.getMessage());
-                    }
+            // Check if target is SilenceSkippingAudioProcessor (has byte[] buffer field and long skippedFrames field)
+            boolean isSilenceProcessor = className.contains("silence");
+            if (!isSilenceProcessor) {
+                boolean hasByteArray = false;
+                boolean hasLong = false;
+                for (Field f : clazz.getDeclaredFields()) {
+                    if (f.getType() == byte[].class) hasByteArray = true;
+                    if (f.getType() == long.class) hasLong = true;
                 }
+                isSilenceProcessor = (hasByteArray && hasLong);
             }
 
-            // 2. Recursively inspect fields
-            for (Field f : clazz.getDeclaredFields()) {
-                try {
-                    f.setAccessible(true);
-                    Object child = f.get(target);
-                    if (child != null && !child.getClass().isPrimitive() && !child.getClass().getName().startsWith("java.lang.")) {
-                        Log.d(TAG, "Depth " + depth + " field " + f.getName() + " -> " + child.getClass().getName());
-                        scanAndApply(child, enabled, depth + 1);
+            if (isSilenceProcessor) {
+                Log.i(TAG, "Found SilenceSkippingAudioProcessor candidate: " + clazz.getName());
+                // Safely invoke setEnabled(boolean) on the silence processor
+                for (Method m : clazz.getDeclaredMethods()) {
+                    if (m.getParameterTypes().length == 1 && m.getParameterTypes()[0] == boolean.class) {
+                        try {
+                            m.setAccessible(true);
+                            m.invoke(target, enabled);
+                            Log.i(TAG, "Successfully invoked " + m.getName() + "(" + enabled + ") on " + clazz.getName());
+                        } catch (Exception ex) {
+                            Log.e(TAG, "Failed invoking " + m.getName(), ex);
+                        }
                     }
-                } catch (Exception ignored) {}
+                }
+                for (Field f : clazz.getDeclaredFields()) {
+                    if (f.getType() == boolean.class) {
+                        try {
+                            f.setAccessible(true);
+                            f.setBoolean(target, enabled);
+                            Log.i(TAG, "Set boolean field " + f.getName() + "=" + enabled + " on " + clazz.getName());
+                        } catch (Exception ignored) {}
+                    }
+                }
+            } else {
+                // Recursively inspect sub-fields safely
+                for (Field f : clazz.getDeclaredFields()) {
+                    try {
+                        f.setAccessible(true);
+                        Object child = f.get(target);
+                        if (child != null && !child.getClass().isPrimitive() && !child.getClass().getName().startsWith("java.lang.")) {
+                            scanAndApply(child, enabled, depth + 1);
+                        }
+                    } catch (Exception ignored) {}
+                }
             }
 
             clazz = clazz.getSuperclass();
