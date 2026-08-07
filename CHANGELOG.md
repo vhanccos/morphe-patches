@@ -1,3 +1,9 @@
+## [1.38.3](https://github.com/vhanccos/morphe-patches/compare/v1.38.2...v1.38.3) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **youtube:** use addInstructions for setAudioSink smali in SkipSilenceButtonPatch ([abe5d49](https://github.com/vhanccos/morphe-patches/commit/abe5d490a7cd8b21308441d7ecf983e8020124d4))
+
 ## [1.38.2](https://github.com/vhanccos/morphe-patches/compare/v1.38.1...v1.38.2) (2026-08-07)
 
 ### 🐛 Bug Fixes
