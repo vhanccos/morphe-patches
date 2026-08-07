@@ -1,3 +1,10 @@
+## [1.38.2](https://github.com/vhanccos/morphe-patches/compare/v1.38.1...v1.38.2) (2026-08-07)
+
+### 🐛 Bug Fixes
+
+* **ci:** fix release.yml syntax by removing invalid secrets in step if ([f986c9f](https://github.com/vhanccos/morphe-patches/commit/f986c9f4351bc7972f60e6db83daeb1a81411469))
+* **youtube:** hook DefaultAudioSink via AudioSinkSetVolumeFingerprint in SkipSilencePatch ([1d50ff7](https://github.com/vhanccos/morphe-patches/commit/1d50ff7f7610bf01cceeeb648742140312335a4b))
+
 ## [1.38.1](https://github.com/vhanccos/morphe-patches/compare/v1.38.0...v1.38.1) (2026-08-07)
 
 ### 🐛 Bug Fixes

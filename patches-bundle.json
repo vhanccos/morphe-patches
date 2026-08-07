@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-08-07T01:00:21",
-  "description": "## [1.38.1](https://github.com/vhanccos/morphe-patches/compare/v1.38.0...v1.38.1) (2026-08-07)\n\n### 🐛 Bug Fixes\n\n* **youtube:** replace AudioSinkSetSpeedMethodFingerprint with AudioTrackWrapperInitFingerprint in SkipSilenceButtonPatch ([fb23f17](https://github.com/vhanccos/morphe-patches/commit/fb23f1795440e27357f559c14d65dda80bae10e7))",
-  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.38.1/patches-1.38.1.mpp",
+  "created_at": "2026-08-07T01:24:57",
+  "description": "## [1.38.2](https://github.com/vhanccos/morphe-patches/compare/v1.38.1...v1.38.2) (2026-08-07)\n\n### 🐛 Bug Fixes\n\n* **ci:** fix release.yml syntax by removing invalid secrets in step if ([f986c9f](https://github.com/vhanccos/morphe-patches/commit/f986c9f4351bc7972f60e6db83daeb1a81411469))\n* **youtube:** hook DefaultAudioSink via AudioSinkSetVolumeFingerprint in SkipSilencePatch ([1d50ff7](https://github.com/vhanccos/morphe-patches/commit/1d50ff7f7610bf01cceeeb648742140312335a4b))",
+  "download_url": "https://github.com/vhanccos/morphe-patches/releases/download/v1.38.2/patches-1.38.2.mpp",
   "signature_download_url": "",
-  "version": "1.38.1"
+  "version": "1.38.2"
 }
