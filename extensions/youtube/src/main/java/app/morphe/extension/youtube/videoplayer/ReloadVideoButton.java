@@ -37,7 +37,10 @@ public class ReloadVideoButton {
                     "morphe_reload_video_button",
                     Settings.RELOAD_VIDEO_BUTTON,
                     v -> LoadVideoPatch.initializeReloadVideo(),
-                    null
+                    v -> {
+                        LoadVideoPatch.restartApp();
+                        return true;
+                    }
             );
         } catch (Exception ex) {
             Logger.printException(() -> "initialize failure", ex);

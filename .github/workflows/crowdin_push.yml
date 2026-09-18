@@ -1,12 +1,9 @@
 name: Crowdin push from GitHub
 
 on:
+  # Push automático desactivado: el fork no tiene credenciales Crowdin (secrets).
+  # Solo se ejecuta manualmente desde Actions.
   workflow_dispatch:
-  push:
-    branches:
-      - dev
-    paths:
-      - patches/src/main/resources/addresources/values/**/strings.xml
 
 jobs:
   push:

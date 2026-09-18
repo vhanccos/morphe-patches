@@ -1,7 +1,7 @@
 name: Crowdin pull and merge
 on:
-  schedule:
-    - cron: "0 */12 * * *" # every 12 hours
+  # schedule desactivado: el fork no tiene credenciales Crowdin (secrets) y este repo
+  # apuntaría al proyecto de upstream. Solo se ejecuta manualmente desde Actions.
   workflow_dispatch:
 
 jobs:
