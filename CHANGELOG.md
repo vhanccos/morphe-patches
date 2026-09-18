@@ -1,3 +1,10 @@
+## [1.43.1](https://github.com/vhanccos/morphe-patches/compare/v1.43.0...v1.43.1) (2026-09-18)
+
+### 🐛 Bug Fixes
+
+* **ci:** gate FCM release steps with repo var, not secrets ([7dfd3bc](https://github.com/vhanccos/morphe-patches/commit/7dfd3bcf0c4ec69fe0aea77ecb8eff5a1f125a59))
+* **youtube:** port fork features onto upstream v1.43.0 ([efc6209](https://github.com/vhanccos/morphe-patches/commit/efc6209387c1da0f63c79a25de3a3381724c999a))
+
 ## [1.43.0](https://github.com/MorpheApp/morphe-patches/compare/v1.42.0...v1.43.0) (2026-09-14)
 
 ### 🐛 Bug Fixes
