@@ -10,8 +10,12 @@
 
 package app.morphe.extension.shared.theme;
 
+import android.content.Context;
 import android.graphics.Color;
+import android.util.TypedValue;
+import android.widget.TextView;
 
+import androidx.annotation.AttrRes;
 import androidx.annotation.ColorInt;
 
 import app.morphe.extension.shared.Logger;
@@ -150,7 +154,13 @@ public class ThemeUtils {
             return Utils.isDarkModeEnabled() ? getThemeLightColor() : getThemeDarkColor();
         }
 
-        return isBrightColor(getAppBackgroundColor()) ? Color.BLACK : Color.WHITE;
+        // Dark text is the readable one on a bright background.
+        // Rec. 601 luma, which weights a channel the way the eye responds to it.
+        final int background = getAppBackgroundColor();
+        final int luma = (299 * Color.red(background)
+                + 587 * Color.green(background)
+                + 114 * Color.blue(background)) / 1000;
+        return luma >= 128 ? Color.BLACK : Color.WHITE;
     }
 
     /**
@@ -159,18 +169,6 @@ public class ThemeUtils {
      */
     public static void setChangeForegroundColor(boolean enabled) {
         changeForegroundColor = enabled;
-    }
-
-    /**
-     * @return If a color is bright enough that dark text is the readable one on it.
-     */
-    private static boolean isBrightColor(@ColorInt int color) {
-        // Rec. 601 luma, which weights a channel the way the eye responds to it.
-        final int luma = (299 * Color.red(color)
-                + 587 * Color.green(color)
-                + 114 * Color.blue(color)) / 1000;
-
-        return luma >= 128;
     }
 
     @ColorInt
@@ -193,6 +191,39 @@ public class ThemeUtils {
         return Utils.isDarkModeEnabled()
                 ? Utils.adjustColorBrightness(getDialogBackgroundColor(), 1.05f)
                 : Utils.adjustColorBrightness(getThemeLightColor(), 0.97f);
+    }
+
+    /**
+     * @return The resource a theme attribute points to, such as a style or a drawable,
+     *         or 0 if the theme does not set it.
+     */
+    public static int getThemeResourceId(Context context, @AttrRes int attribute) {
+        TypedValue value = new TypedValue();
+        return context.getTheme().resolveAttribute(attribute, value, true)
+                ? value.resourceId
+                : 0;
+    }
+
+    /**
+     * Styles the text the way {@code android:textAppearance} and {@code android:textColor}
+     * set to theme attributes do in a layout.
+     */
+    public static void setThemeTextStyle(TextView view, @AttrRes int textAppearanceAttribute,
+                                         @AttrRes int textColorAttribute) {
+        Context context = view.getContext();
+        final int textAppearance = getThemeResourceId(context, textAppearanceAttribute);
+        if (textAppearance != 0) {
+            view.setTextAppearance(textAppearance);
+        }
+
+        TypedValue textColor = new TypedValue();
+        if (context.getTheme().resolveAttribute(textColorAttribute, textColor, true)) {
+            if (textColor.resourceId != 0) {
+                view.setTextColor(context.getColorStateList(textColor.resourceId));
+            } else {
+                view.setTextColor(textColor.data);
+            }
+        }
     }
 
     private ThemeUtils() {

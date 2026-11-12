@@ -19,6 +19,7 @@ import static app.morphe.extension.youtube.patches.MiniplayerPatch.MiniplayerTyp
 import static app.morphe.extension.youtube.patches.MiniplayerPatch.MiniplayerType.MODERN_4;
 
 import android.content.res.ColorStateList;
+import android.content.res.Resources;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.util.DisplayMetrics;
@@ -114,7 +115,7 @@ public final class MiniplayerPatch {
         // 170 seems to be the smallest that can be used and using less makes no difference.
         final int WIDTH_DIP_MIN = 170; // Seems to be the smallest that works.
         final int HORIZONTAL_PADDING_DIP = 15; // Estimated padding.
-        // Round down to the nearest 5 pixels, to keep any error toasts easier to read.
+        // Round down to the nearest 5 pixels, to keep any error messages easier to read.
         final int estimatedWidthDipMax = 5 * ((deviceDipWidth - HORIZONTAL_PADDING_DIP) / 5);
         // On some ultra-low-end devices the pixel width and density are the same number,
         // which causes the estimate to always give a value of 1.
@@ -127,7 +128,7 @@ public final class MiniplayerPatch {
         int dipWidth = Settings.MINIPLAYER_WIDTH_DIP.get();
 
         if (dipWidth < WIDTH_DIP_MIN || dipWidth > WIDTH_DIP_MAX) {
-            Utils.showToastLong(str("morphe_miniplayer_width_dip_invalid_toast",
+            Utils.showSnackbarLong(str("morphe_miniplayer_width_dip_invalid_toast",
                     WIDTH_DIP_MIN, WIDTH_DIP_MAX));
 
             // Instead of resetting, clamp the size at the bounds.
@@ -165,18 +166,20 @@ public final class MiniplayerPatch {
                     && Settings.MINIPLAYER_HIDE_OVERLAY_BUTTONS.isAvailable();
 
     private static final boolean MINIPLAYER_ROUNDED_CORNERS_ENABLED =
-            CURRENT_TYPE.isModern() && !Settings.MINIPLAYER_DISABLE_ROUNDED_CORNERS.get();
+            CURRENT_TYPE.isModern() && !Settings.MINIPLAYER_DISABLE_ROUNDED_CORNERS.get()
+                    && !(MINIMAL_BAR_SELECTED && Settings.MINIPLAYER_DOCKED.get());
 
     private static final boolean MINIPLAYER_HORIZONTAL_DRAG_ENABLED = DRAG_AND_DROP_ENABLED
             && (MINIMAL_BAR_SELECTED || !Settings.MINIPLAYER_DISABLE_HORIZONTAL_DRAG.get());
 
-    private static final Map<Integer, String> MINIMAL_PLAYER_DRAWABLES = Map.of(
-            ResourceUtils.getStringIdentifier("accessibility_pause"),
-            "yt_fill_pause_vd_theme_24",
-            ResourceUtils.getStringIdentifier("accessibility_play"),
-            "yt_fill_play_arrow_vd_theme_24",
-            ResourceUtils.getStringIdentifier("accessibility_replay"),
-            "yt_outline_replay_arrow_vd_theme_24"
+    /**
+     * Keyed by the content description string name, as resolving the ids here can give 0 for
+     * all of them on some installs, and duplicate keys make the map crash the app at launch.
+     */
+    private static final Map<String, String> MINIMAL_PLAYER_DRAWABLES = Map.of(
+            "accessibility_pause", "yt_fill_pause_vd_theme_24",
+            "accessibility_play", "yt_fill_play_arrow_vd_theme_24",
+            "accessibility_replay", "yt_outline_replay_arrow_vd_theme_24"
     );
 
     private static final int OPACITY_LEVEL =
@@ -219,25 +222,10 @@ public final class MiniplayerPatch {
         }
     }
 
-    public static final class MiniplayerHorizontalDragPlaybackAvailability implements Setting.Availability {
-        @Override
-        public boolean isAvailable() {
-            return isDraggableMiniplayer()
-                    && !Settings.MINIPLAYER_DISABLE_DRAG_AND_DROP.get()
-                    && !Settings.MINIPLAYER_DISABLE_HORIZONTAL_DRAG.get();
-        }
-
-        @Override
-        public List<Setting<?>> getParentSettings() {
-            return List.of(
-                    Settings.MINIPLAYER_TYPE,
-                    Settings.MINIPLAYER_DISABLE_DRAG_AND_DROP,
-                    Settings.MINIPLAYER_DISABLE_HORIZONTAL_DRAG
-            );
-        }
-    }
-
-    public static final class MiniplayerHorizontalRepositioningAvailability implements Setting.Availability {
+    /**
+     * Horizontal drag playback and horizontal repositioning both need the horizontal drag.
+     */
+    public static final class MiniplayerHorizontalDragOptionsAvailability implements Setting.Availability {
         @Override
         public boolean isAvailable() {
             return isDraggableMiniplayer()
@@ -272,12 +260,36 @@ public final class MiniplayerPatch {
         }
     }
 
+    public static final class MiniplayerMinimalBarAvailability implements Setting.Availability {
+        @Override
+        public boolean isAvailable() {
+            MiniplayerType type = Settings.MINIPLAYER_TYPE.get();
+            return type == MINIMAL_BAR || type == MINIMAL_BAR_2;
+        }
+
+        @Override
+        public List<Setting<?>> getParentSettings() {
+            return List.of(Settings.MINIPLAYER_TYPE);
+        }
+    }
+
+    public static final class MiniplayerMinimalBar2Availability implements Setting.Availability {
+        @Override
+        public boolean isAvailable() {
+            return Settings.MINIPLAYER_TYPE.get() == MINIMAL_BAR_2;
+        }
+
+        @Override
+        public List<Setting<?>> getParentSettings() {
+            return List.of(Settings.MINIPLAYER_TYPE);
+        }
+    }
+
     public static final class MiniplayerAnyModernAvailability implements Setting.Availability {
         @Override
         public boolean isAvailable() {
             MiniplayerType type = Settings.MINIPLAYER_TYPE.get();
-            return type == MODERN_1 || type == MODERN_2 || type == MODERN_3 || type == MODERN_4
-                    || type == MINIMAL_BAR || type == MINIMAL_BAR_2;
+            return type == MODERN_1 || type == MODERN_2 || type == MODERN_3 || type == MODERN_4;
         }
 
         @Override
@@ -302,8 +314,8 @@ public final class MiniplayerPatch {
     /**
      * Injection point.
      */
-    public static boolean disableResumingStartupMiniPlayer(boolean original) {
-        return !Settings.MINIPLAYER_DISABLE_RESUMING.get() && original;
+    public static boolean disableResumingStartupMiniPlayer() {
+        return Settings.MINIPLAYER_DISABLE_RESUMING.get();
     }
 
     /**
@@ -332,9 +344,15 @@ public final class MiniplayerPatch {
      * Injection point.
      */
     public static boolean getModernMiniplayerOverride(boolean original) {
-        return CURRENT_TYPE == DEFAULT
-                ? original
-                : CURRENT_TYPE.isModern();
+        if (CURRENT_TYPE == DEFAULT) {
+            return original;
+        }
+
+        final boolean modern = CURRENT_TYPE.isModern();
+        if (modern != original) {
+            Logger.printVerbose(() -> "getModernMiniplayerOverride: " + modern + " (app: " + original + ")");
+        }
+        return modern;
     }
 
     /**
@@ -348,9 +366,14 @@ public final class MiniplayerPatch {
         }
 
         Integer modernValue = CURRENT_TYPE.modernPlayerType;
-        return modernValue == null
-                ? original
-                : modernValue;
+        if (modernValue == null) {
+            return original;
+        }
+
+        if (modernValue != original) {
+            Logger.printVerbose(() -> "getModernMiniplayerOverrideType: " + modernValue + " (app: " + original + ")");
+        }
+        return modernValue;
     }
 
     /**
@@ -374,7 +397,11 @@ public final class MiniplayerPatch {
             return original;
         }
 
-        return CURRENT_TYPE.isModern();
+        final boolean modern = CURRENT_TYPE.isModern();
+        if (modern != original) {
+            Logger.printVerbose(() -> "getModernFeatureFlagsActiveOverride: " + modern + " (app: " + original + ")");
+        }
+        return modern;
     }
 
     /**
@@ -556,6 +583,39 @@ public final class MiniplayerPatch {
 
     /**
      * Injection point.
+     *
+     * @return The orientation the list is laid out in.
+     */
+    public static int getListOrientation(View list) {
+        return list.getResources().getConfiguration().orientation;
+    }
+
+    /**
+     * Injection point.
+     * <p>
+     * After an orientation change, YouTube detaches and attaches a list again the next time its
+     * size changes, and the list is empty for a frame until its items are laid out again.
+     * Exiting fullscreen brings the list back with the size and orientation it had before,
+     * so nothing has to be rebuilt. Left pending, the list is rebuilt the next time its size
+     * changes for other reasons, such as when the player shrinks while scrolling the watch page,
+     * or when the home is laid out again after minimizing the player, and the black frame
+     * shows then.
+     *
+     * @param rebuildPending  If the list is rebuilt the next time its size changes.
+     * @param sizeOrientation The orientation the current size of the list was laid out in,
+     *                        or 0 if not known yet.
+     */
+    public static boolean getListRebuildPending(View list, boolean rebuildPending, int sizeOrientation) {
+        if (rebuildPending && sizeOrientation == getListOrientation(list)) {
+            Logger.printDebug(() -> "Skipping rebuild of list with unchanged size and orientation");
+            return false;
+        }
+
+        return rebuildPending;
+    }
+
+    /**
+     * Injection point.
      */
     public static int getMiniplayerDefaultSize(int original) {
         if (CURRENT_TYPE.isModern()) {
@@ -620,12 +680,17 @@ public final class MiniplayerPatch {
             return;
         }
 
-        String drawableName = MINIMAL_PLAYER_DRAWABLES.get(contentDescriptionId);
-        if (drawableName != null) {
-            Drawable drawable = ResourceUtils.getDrawable(drawableName);
-            if (drawable != null) {
-                view.setImageDrawable(drawable);
+        try {
+            String drawableName = MINIMAL_PLAYER_DRAWABLES.get(
+                    view.getResources().getResourceEntryName(contentDescriptionId));
+            if (drawableName != null) {
+                Drawable drawable = ResourceUtils.getDrawable(drawableName);
+                if (drawable != null) {
+                    view.setImageDrawable(drawable);
+                }
             }
+        } catch (Resources.NotFoundException ex) {
+            Logger.printDebug(() -> "overrideMiniplayerActionButtonDrawable failure", ex);
         }
     }
 }

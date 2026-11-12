@@ -10,22 +10,58 @@
 
 package app.morphe.extension.shared.requests;
 
+import android.content.Context;
+
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
+import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.Utils;
 
 public class Requester {
+    /**
+     * Response code of a successful API call.
+     */
+    public static final int HTTP_STATUS_CODE_SUCCESS = 200;
+
+    /**
+     * Response code when the request is malformed or has invalid parameters.
+     */
+    public static final int HTTP_STATUS_CODE_BAD_REQUEST = 400;
+
+    /**
+     * Response code when the server understood the request but refuses to fulfill it.
+     */
+    public static final int HTTP_STATUS_CODE_FORBIDDEN = 403;
+
+    /**
+     * Response code when the requested resource does not exist.
+     */
+    public static final int HTTP_STATUS_CODE_NOT_FOUND = 404;
+
+    /**
+     * Response code when the request conflicts with the current state of the resource.
+     */
+    public static final int HTTP_STATUS_CODE_CONFLICT = 409;
+
+    /**
+     * Response code when the client is rate limited.
+     */
+    public static final int HTTP_STATUS_CODE_TOO_MANY_REQUESTS = 429;
+
     public interface ConnectionProvider {
         HttpURLConnection openConnection(URL url) throws IOException;
     }
@@ -57,6 +93,25 @@ public class Requester {
         connection.setRequestProperty("User-Agent", agentString);
 
         return connection;
+    }
+
+    /**
+     * @return The locale the app itself is configured with, which differs from the system one
+     *         when the user picks another language inside the app. Request bodies send the
+     *         language and the country of it as their hl and gl fields.
+     */
+    @NonNull
+    public static Locale getAppLocale() {
+        try {
+            Context context = Utils.getContext();
+            if (context != null) {
+                return context.getResources().getConfiguration().getLocales().get(0);
+            }
+        } catch (Exception ex) {
+            Logger.printException(() -> "getAppLocale failure", ex);
+        }
+
+        return Locale.getDefault();
     }
 
     public static HttpURLConnection openConnection(String url) throws IOException {
@@ -98,7 +153,7 @@ public class Requester {
 
     /**
      * Parse the {@link HttpURLConnection} response as a String, and disconnect.
-     *
+     * <p>
      * <b>Should only be used if other requests to the server in the near future are unlikely</b>
      *
      * @see #parseString(HttpURLConnection)
@@ -107,6 +162,22 @@ public class Requester {
         String result = parseString(connection);
         connection.disconnect();
         return result;
+    }
+
+    /**
+     * Parse the {@link HttpURLConnection} response as bytes, such as a protobuf response.
+     * This does not close the url connection.
+     */
+    public static byte[] parseBytes(HttpURLConnection connection) throws IOException {
+        try (InputStream inputStream = connection.getInputStream()) {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = inputStream.read(buffer)) > 0) {
+                bytes.write(buffer, 0, read);
+            }
+            return bytes.toByteArray();
+        }
     }
 
     /**
@@ -124,7 +195,7 @@ public class Requester {
     /**
      * Parse the {@link HttpURLConnection} error stream as a String, and disconnect.
      * If the server sent no error response data, this returns an empty string.
-     *
+     * <p>
      * Should only be used if other requests to the server are unlikely in the near future.
      *
      * @see #parseErrorString(HttpURLConnection)
@@ -146,7 +217,7 @@ public class Requester {
 
     /**
      * Parse the {@link HttpURLConnection}, close the underlying InputStream, and disconnect.
-     *
+     * <p>
      * <b>Should only be used if other requests to the server in the near future are unlikely</b>
      *
      * @see #parseJSONObject(HttpURLConnection)
@@ -159,24 +230,10 @@ public class Requester {
 
     /**
      * Parse the {@link HttpURLConnection}, and closes the underlying InputStream.
-     * This does not close the url connection. If further requests to this host are unlikely
-     * in the near future, then instead use {@link #parseJSONArrayAndDisconnect(HttpURLConnection)}.
+     * This does not close the url connection.
      */
     public static JSONArray parseJSONArray(HttpURLConnection connection) throws JSONException, IOException  {
         return new JSONArray(parseString(connection));
-    }
-
-    /**
-     * Parse the {@link HttpURLConnection}, close the underlying InputStream, and disconnect.
-     *
-     * <b>Should only be used if other requests to the server in the near future are unlikely</b>
-     *
-     * @see #parseJSONArray(HttpURLConnection)
-     */
-    public static JSONArray parseJSONArrayAndDisconnect(HttpURLConnection connection) throws JSONException, IOException  {
-        JSONArray array = parseJSONArray(connection);
-        connection.disconnect();
-        return array;
     }
 
 }

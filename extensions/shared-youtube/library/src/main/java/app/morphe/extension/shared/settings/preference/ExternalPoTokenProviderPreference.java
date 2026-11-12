@@ -22,7 +22,6 @@ import androidx.annotation.Nullable;
 
 import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.settings.SharedYouTubeSettings;
-import app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch;
 
 @SuppressWarnings({"deprecation", "unused"})
 public class ExternalPoTokenProviderPreference extends SwitchPreference {
@@ -46,28 +45,20 @@ public class ExternalPoTokenProviderPreference extends SwitchPreference {
         public void onActivityDestroyed(@NonNull Activity a) {}
     };
 
-    private void registerApplicationOnResumeCallback() {
-        SpoofVideoStreamsPatch.getApplication().registerActivityLifecycleCallbacks(
-                ACTIVITY_LIFECYCLE_CALLBACKS
-        );
-    }
-
-    private void unregisterApplicationOnResumeCallback() {
-        SpoofVideoStreamsPatch.getApplication().unregisterActivityLifecycleCallbacks(
-                ACTIVITY_LIFECYCLE_CALLBACKS
-        );
-    }
-
     @Override
     protected void onAttachedToHierarchy(PreferenceManager preferenceManager) {
         super.onAttachedToHierarchy(preferenceManager);
-        registerApplicationOnResumeCallback();
+        ((Application) getContext().getApplicationContext()).registerActivityLifecycleCallbacks(
+                ACTIVITY_LIFECYCLE_CALLBACKS
+        );
     }
 
     @Override
     protected void onPrepareForRemoval() {
         super.onPrepareForRemoval();
-        unregisterApplicationOnResumeCallback();
+        ((Application) getContext().getApplicationContext()).unregisterActivityLifecycleCallbacks(
+                ACTIVITY_LIFECYCLE_CALLBACKS
+        );
     }
 
     @Override

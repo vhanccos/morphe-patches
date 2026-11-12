@@ -18,34 +18,38 @@ internal object Constants {
         ),
         targets = listOf(
             AppTarget(
-                version = "21.36.45",
+                version = "21.45.82",
                 minSdk = 29,
                 isExperimental = true
             ),
             AppTarget(
-                version = "21.35.442",
+                version = "21.44.528",
                 minSdk = 29,
                 isExperimental = true
+            ),
+            AppTarget(
+                version = "21.43.523",
+                minSdk = 29,
+                isExperimental = true
+            ),
+            AppTarget(
+                version = "21.30.216",
+                minSdk = 29
             ),
             AppTarget(
                 version = "21.28.208", // Last version with different miniplayers.
-                minSdk = 29,
-                isExperimental = true
+                minSdk = 29
             ),
             AppTarget(
-                version = "21.13.164",
+                version = "21.23.492", // Last version for Android 9.0
                 minSdk = 28
             ),
             AppTarget(
-                version = "21.07.247",
+                version = "20.51.39",
                 minSdk = 28
             ),
             AppTarget(
-                version = "20.31.42",
-                minSdk = 28
-            ),
-            AppTarget(
-                version = "20.21.37",
+                version = "20.26.46", // Last version for Android 8.0
                 minSdk = 26
             )
         )

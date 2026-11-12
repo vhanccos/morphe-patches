@@ -12,6 +12,7 @@ import static app.morphe.extension.shared.StringRef.str;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.text.TextUtils;
+import android.util.Pair;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -28,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import app.morphe.extension.shared.Logger;
@@ -48,10 +50,11 @@ import app.morphe.extension.youtube.patches.utils.requests.SavePlaylistRequest;
 import app.morphe.extension.youtube.settings.Settings;
 import app.morphe.extension.youtube.settings.YouTubeActivityHook;
 import app.morphe.extension.youtube.shared.PlayerType;
-import kotlin.Pair;
 
 @SuppressWarnings({"unused", "StaticFieldLeak"})
 public class PlaylistPatch {
+    private static final int PLAYLIST_LIST_MAX_HEIGHT_PERCENT = 50;
+
     private static final String checkFailedAuth = str("morphe_queue_manager_check_failed_auth");
     private static final String checkFailedPlaylistId = str("morphe_queue_manager_check_failed_playlist_id");
     private static final String checkFailedQueue = str("morphe_queue_manager_check_failed_queue");
@@ -161,18 +164,7 @@ public class PlaylistPatch {
 
     @SuppressLint("ResourceType")
     private static View createItemLayout(Context context, String title, int iconId) {
-        LinearLayout row = new LinearLayout(context);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(Dim.dp16, Dim.dp16, Dim.dp16, Dim.dp16);
-        row.setClickable(true);
-        row.setFocusable(true);
-
-        TypedValue ripple = new TypedValue();
-        if (context.getTheme().resolveAttribute(
-                android.R.attr.selectableItemBackground, ripple, true)) {
-            row.setBackgroundResource(ripple.resourceId);
-        }
+        LinearLayout row = createRow(context);
 
         ImageView icon = new ImageView(context);
         icon.setImageResource(iconId);
@@ -194,6 +186,19 @@ public class PlaylistPatch {
         return row;
     }
 
+    private static LinearLayout createRow(Context context) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Dim.dp16, Dim.dp16, Dim.dp16, Dim.dp16);
+        row.setClickable(true);
+        row.setFocusable(true);
+
+        row.setBackgroundResource(ThemeUtils.getThemeResourceId(
+                context, android.R.attr.selectableItemBackground));
+        return row;
+    }
+
     private static void fetchQueue(Context context, boolean remove, boolean openPlaylist,
                                    boolean openVideo, boolean reload, boolean retry) {
         String currentPlaylistId = playlistId;
@@ -201,71 +206,62 @@ public class PlaylistPatch {
         Utils.runOnBackgroundThread(() -> {
             synchronized (lastVideoIds) {
                 if (currentPlaylistId.isEmpty()) {
-                    CreatePlaylistRequest.fetchRequestIfNeeded(currentVideoId, AuthUtils.getRequestHeader());
-                    CreatePlaylistRequest request = CreatePlaylistRequest.getRequestForVideoId(currentVideoId);
-                    if (request != null) {
-                        Pair<String, String> playlistIds = request.getPlaylistId();
-                        if (playlistIds != null) {
-                            String createdPlaylistId = playlistIds.getFirst();
-                            String setVideoId = playlistIds.getSecond();
-                            if (createdPlaylistId != null && setVideoId != null) {
-                                playlistId = createdPlaylistId;
-                                if (Settings.QUEUE_RESTORE.get()) {
-                                    Settings.QUEUE_PLAYLIST_ID.save(createdPlaylistId);
-                                }
-                                lastVideoIds.putIfAbsent(currentVideoId, setVideoId);
-                                showToast(fetchSucceededCreate);
-                                Logger.printDebug(() -> "Queue created, playlistId: "
-                                        + createdPlaylistId + ", setVideoId: " + setVideoId);
-                                if (openPlaylist) {
-                                    openQueue(context, currentVideoId, openVideo, reload);
-                                }
-                                return;
+                    Pair<String, String> playlistIds = CreatePlaylistRequest.fetchRequestIfNeeded(
+                            currentVideoId, AuthUtils.getRequestHeader()).getPlaylistId();
+                    if (playlistIds != null) {
+                        String createdPlaylistId = playlistIds.first;
+                        String setVideoId = playlistIds.second;
+                        if (createdPlaylistId != null && setVideoId != null) {
+                            playlistId = createdPlaylistId;
+                            if (Settings.QUEUE_RESTORE.get()) {
+                                Settings.QUEUE_PLAYLIST_ID.save(createdPlaylistId);
                             }
-                        }
-                    }
-                    showToast(fetchFailedCreate);
-                } else {
-                    String setVideoId = lastVideoIds.get(currentVideoId);
-                    EditPlaylistRequest.fetchRequestIfNeeded(currentVideoId, currentPlaylistId,
-                            setVideoId, AuthUtils.getRequestHeader());
-                    EditPlaylistRequest request = EditPlaylistRequest.getRequestForVideoId(currentVideoId);
-                    if (request != null) {
-                        String fetchedSetVideoId = request.getResult();
-                        Logger.printDebug(() -> "fetchedSetVideoId: " + fetchedSetVideoId);
-                        if (remove) {
-                            if ("".equals(fetchedSetVideoId)) {
-                                lastVideoIds.remove(currentVideoId, setVideoId);
-                                EditPlaylistRequest.clearVideoId(currentVideoId);
-                                showToast(fetchSucceededRemove);
-                                if (openPlaylist) {
-                                    openQueue(context, currentVideoId, openVideo, reload);
-                                }
-                                return;
-                            }
-                            showToast(fetchFailedRemove);
-                        } else {
-                            if (fetchedSetVideoId == null || fetchedSetVideoId.isEmpty()) {
-                                Logger.printDebug(() -> "Playlist not available fetchedSetVideoId: "
-                                        + fetchedSetVideoId);
-                                if (!retry) {
-                                    // Already retried, give up.
-                                    showToast(fetchFailedAdd);
-                                    return;
-                                }
-                                // Clear saved playlist and try again.
-                                playlistId = Settings.QUEUE_PLAYLIST_ID.resetToDefault();
-                                fetchQueue(context, false, openPlaylist, openVideo, reload, false);
-                                return;
-                            }
-
-                            lastVideoIds.putIfAbsent(currentVideoId, fetchedSetVideoId);
-                            EditPlaylistRequest.clearVideoId(currentVideoId);
-                            Logger.printDebug(() -> "Video added, setVideoId: " + fetchedSetVideoId);
-                            showToast(fetchSucceededAdd);
+                            lastVideoIds.putIfAbsent(currentVideoId, setVideoId);
+                            showSnackbar(fetchSucceededCreate);
+                            Logger.printDebug(() -> "Queue created, playlistId: "
+                                    + createdPlaylistId + ", setVideoId: " + setVideoId);
                             if (openPlaylist) {
                                 openQueue(context, currentVideoId, openVideo, reload);
                             }
+                            return;
+                        }
+                    }
+                    showSnackbar(fetchFailedCreate);
+                } else {
+                    String setVideoId = lastVideoIds.get(currentVideoId);
+                    String fetchedSetVideoId = EditPlaylistRequest.fetchRequestIfNeeded(currentVideoId,
+                            currentPlaylistId, setVideoId, AuthUtils.getRequestHeader()).getResult();
+                    Logger.printDebug(() -> "fetchedSetVideoId: " + fetchedSetVideoId);
+                    if (remove) {
+                        if ("".equals(fetchedSetVideoId)) {
+                            lastVideoIds.remove(currentVideoId, setVideoId);
+                            showSnackbar(fetchSucceededRemove);
+                            if (openPlaylist) {
+                                openQueue(context, currentVideoId, openVideo, reload);
+                            }
+                            return;
+                        }
+                        showSnackbar(fetchFailedRemove);
+                    } else {
+                        if (fetchedSetVideoId == null || fetchedSetVideoId.isEmpty()) {
+                            Logger.printDebug(() -> "Playlist not available fetchedSetVideoId: "
+                                    + fetchedSetVideoId);
+                            if (!retry) {
+                                // Already retried, give up.
+                                showSnackbar(fetchFailedAdd);
+                                return;
+                            }
+                            // Clear saved playlist and try again.
+                            playlistId = Settings.QUEUE_PLAYLIST_ID.resetToDefault();
+                            fetchQueue(context, false, openPlaylist, openVideo, reload, false);
+                            return;
+                        }
+
+                        lastVideoIds.putIfAbsent(currentVideoId, fetchedSetVideoId);
+                        Logger.printDebug(() -> "Video added, setVideoId: " + fetchedSetVideoId);
+                        showSnackbar(fetchSucceededAdd);
+                        if (openPlaylist) {
+                            openQueue(context, currentVideoId, openVideo, reload);
                         }
                     }
                 }
@@ -279,14 +275,21 @@ public class PlaylistPatch {
             handleCheckError(checkFailedQueue);
             return;
         }
+        showPlaylistPicker(context, currentPlaylistId, PlaylistPatch::saveToPlaylist);
+    }
+
+    public static void showPlaylistPicker(Context context, String sourcePlaylistId,
+                                         BiConsumer<String, String> onSelected) {
         try {
             GetPlaylistsRequest request = GetPlaylistsRequest.fetchRequestIfNeeded(
-                    currentPlaylistId, AuthUtils.getRequestHeader());
+                    sourcePlaylistId, AuthUtils.getRequestHeader());
             if (request == null) {
                 return;
             }
-            Utils.runOnBackgroundThread(() ->  {
+            Utils.runOnBackgroundThread(() -> {
                 Pair<String, String>[] playlists = request.getPlaylists();
+                // Fetch again next time, so a failed request can be retried.
+                GetPlaylistsRequest.clear();
                 if (playlists == null || playlists.length == 0) return;
                 Utils.runOnMainThread(() -> {
                     SheetBottomDialog.DraggableLinearLayout mainLayout = SheetBottomDialog
@@ -298,22 +301,16 @@ public class PlaylistPatch {
                     listContainer.setOrientation(LinearLayout.VERTICAL);
 
                     for (Pair<String, String> playlist : playlists) {
-                        String listId = playlist.getFirst();
-                        String title = playlist.getSecond();
-                        Runnable action = () -> saveToPlaylist(listId, title);
+                        String listId = playlist.first;
+                        String title = playlist.second;
+                        Runnable action = () -> onSelected.accept(listId, title);
                         View itemLayout = createItemLayout(context, title, libraryIconId);
                         actionsMap.put(itemLayout, action);
                         listContainer.addView(itemLayout);
                     }
 
-                    ScrollView scrollView = new ScrollView(context) {
-                        @Override
-                        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                            heightMeasureSpec = MeasureSpec.makeMeasureSpec(Dim.pctHeight(50), MeasureSpec.AT_MOST);
-                            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-                        }
-                    };
-                    scrollView.setVerticalScrollBarEnabled(false);
+                    ScrollView scrollView = SheetBottomDialog.createCappedScrollView(
+                            context, PLAYLIST_LIST_MAX_HEIGHT_PERCENT);
                     scrollView.addView(listContainer);
                     mainLayout.addView(scrollView);
 
@@ -327,11 +324,10 @@ public class PlaylistPatch {
                         });
                     }
                     dialog.show();
-                    GetPlaylistsRequest.clear();
                 });
             });
         } catch (Exception ex) {
-            Logger.printException(() -> "saveToPlaylist failure", ex);
+            Logger.printException(() -> "showPlaylistPicker failure", ex);
         }
     }
 
@@ -343,17 +339,13 @@ public class PlaylistPatch {
             }
             SavePlaylistRequest request = SavePlaylistRequest.fetchRequestIfNeeded(
                     playlistId, libraryId, AuthUtils.getRequestHeader());
-            if (request == null) {
-                return;
-            }
             Utils.runOnBackgroundThread(() -> {
                 Boolean result = request.getResult();
                 if (Boolean.TRUE.equals(result)) {
-                    showToast(String.format(fetchSucceededSave, libraryTitle));
-                    SavePlaylistRequest.clear();
+                    showSnackbar(String.format(fetchSucceededSave, libraryTitle));
                     return;
                 }
-                showToast(fetchFailedSave);
+                showSnackbar(fetchFailedSave);
             });
         } catch (Exception ex) {
             Logger.printException(() -> "saveToPlaylist failure", ex);
@@ -405,11 +397,11 @@ public class PlaylistPatch {
     }
 
     private static void handleCheckError(String reason) {
-        showToast(String.format(checkFailedGeneric, reason));
+        showSnackbar(String.format(checkFailedGeneric, reason));
     }
 
-    private static void showToast(String reason) {
-        Utils.showToastShort(reason);
+    private static void showSnackbar(String reason) {
+        Utils.showSnackbarShort(reason);
     }
 
     public enum QueueManager {

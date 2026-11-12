@@ -36,11 +36,25 @@ public final class PlayerRoutes {
                     "&alt=proto"
     ).compile();
 
+    /**
+     * Playback never needs the video details, so they are only asked for by downloads,
+     * which name the saved file after them.
+     */
+    private static final Route.CompiledRoute GET_PLAYER_STREAMING_DATA_WITH_DETAILS = new Route(
+            Route.Method.POST,
+            "player?alt=proto"
+    ).compile();
+
     private static final Route.CompiledRoute GET_REEL_STREAMING_DATA = new Route(
             Route.Method.POST,
             "reel/reel_item_watch" +
                     "?fields=responseContext.visitorData,playerResponse.playabilityStatus,playerResponse.streamingData,playerResponse.playerConfig" +
                     "&alt=proto"
+    ).compile();
+
+    private static final Route.CompiledRoute GET_REEL_STREAMING_DATA_WITH_DETAILS = new Route(
+            Route.Method.POST,
+            "reel/reel_item_watch?alt=proto"
     ).compile();
 
     private static final String YT_API_URL = "https://youtubei.googleapis.com/youtubei/v1/";
@@ -144,11 +158,22 @@ public final class PlayerRoutes {
         return innerTubeBody.toString();
     }
 
-    @SuppressWarnings("SameParameterValue")
     static HttpURLConnection getPlayerResponseConnectionFromRoute(ClientType clientType) throws IOException {
-        Route.CompiledRoute route = clientType.usePlayerEndpoint
-                ? GET_PLAYER_STREAMING_DATA
-                : GET_REEL_STREAMING_DATA;
+        return getPlayerResponseConnectionFromRoute(clientType, false);
+    }
+
+    static HttpURLConnection getPlayerResponseConnectionFromRoute(ClientType clientType,
+                                                                  boolean includeVideoDetails) throws IOException {
+        Route.CompiledRoute route;
+        if (!clientType.usePlayerEndpoint) {
+            route = includeVideoDetails
+                    ? GET_REEL_STREAMING_DATA_WITH_DETAILS
+                    : GET_REEL_STREAMING_DATA;
+        } else {
+            route = includeVideoDetails
+                    ? GET_PLAYER_STREAMING_DATA_WITH_DETAILS
+                    : GET_PLAYER_STREAMING_DATA;
+        }
         HttpURLConnection connection = Requester.getConnectionFromCompiledRoute(YT_API_URL, route);
 
         connection.setRequestProperty("Content-Type", "application/json");

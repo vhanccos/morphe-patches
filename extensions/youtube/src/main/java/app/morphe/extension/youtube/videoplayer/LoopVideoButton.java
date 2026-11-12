@@ -31,13 +31,10 @@ import androidx.annotation.Nullable;
 import java.util.Locale;
 
 import app.morphe.extension.shared.Logger;
-import app.morphe.extension.shared.ResourceType;
-import app.morphe.extension.shared.ResourceUtils;
 import app.morphe.extension.shared.Utils;
 import app.morphe.extension.shared.theme.ThemeUtils;
 import app.morphe.extension.shared.ui.CustomDialog;
 import app.morphe.extension.shared.ui.Dim;
-import app.morphe.extension.youtube.patches.LegacyPlayerControlsPatch;
 import app.morphe.extension.youtube.patches.LoopVideoPatch;
 import app.morphe.extension.youtube.patches.VideoInformation;
 import app.morphe.extension.youtube.settings.Settings;
@@ -54,21 +51,9 @@ public class LoopVideoButton {
     @Nullable
     private static LegacyPlayerControlButton legacy;
 
-    private static final int LOOP_VIDEO_ON = ResourceUtils.getIdentifierOrThrow(
-            ResourceType.DRAWABLE,
-            LegacyPlayerControlsPatch.RESTORE_OLD_PLAYER_BUTTONS
-                    ? "morphe_loop_video_button_on"
-                    : "morphe_loop_video_button_on_bold");
-    private static final int LOOP_VIDEO_OFF = ResourceUtils.getIdentifierOrThrow(
-            ResourceType.DRAWABLE,
-            LegacyPlayerControlsPatch.RESTORE_OLD_PLAYER_BUTTONS
-                    ? "morphe_loop_video_button_off"
-                    : "morphe_loop_video_button_off_bold");
-    private static final int LOOP_VIDEO_RANGE = ResourceUtils.getIdentifierOrThrow(
-            ResourceType.DRAWABLE,
-            LegacyPlayerControlsPatch.RESTORE_OLD_PLAYER_BUTTONS
-                    ? "morphe_loop_video_button_range"
-                    : "morphe_loop_video_button_range_bold");
+    private static final int LOOP_VIDEO_ON = PlayerIcons.id("morphe_loop_video_button_on");
+    private static final int LOOP_VIDEO_OFF = PlayerIcons.id("morphe_loop_video_button_off");
+    private static final int LOOP_VIDEO_RANGE = PlayerIcons.id("morphe_loop_video_button_range");
     private static final String videoRangeInvalidTimeStringName =
             "morphe_loop_video_range_invalid_time";
 
@@ -125,7 +110,7 @@ public class LoopVideoButton {
         final boolean newState = !Settings.LOOP_VIDEO.get();
         setLoopButton(newState);
 
-        Utils.showToastShort(str(newState
+        Utils.showSnackbarShort(str(newState
                 ? "morphe_loop_video_button_toast_on"
                 : "morphe_loop_video_button_toast_off"));
 
@@ -189,7 +174,7 @@ public class LoopVideoButton {
     private static void applyRange(String startInput, String endInput, long videoLengthMs) {
         final long startMs = parseTime(startInput);
         if (startMs < 0) {
-            Utils.showToastShort(str(videoRangeInvalidTimeStringName));
+            Utils.showSnackbarShort(str(videoRangeInvalidTimeStringName));
             return;
         }
 
@@ -197,14 +182,14 @@ public class LoopVideoButton {
         boolean endIsVideoEnd = endInput.trim().isEmpty();
         if (endIsVideoEnd) {
             if (videoLengthMs <= 0) {
-                Utils.showToastShort(str(videoRangeInvalidTimeStringName));
+                Utils.showSnackbarShort(str(videoRangeInvalidTimeStringName));
                 return;
             }
             endMs = videoLengthMs;
         } else {
             final long parsed = parseTime(endInput);
             if (parsed < 0) {
-                Utils.showToastShort(str(videoRangeInvalidTimeStringName));
+                Utils.showSnackbarShort(str(videoRangeInvalidTimeStringName));
                 return;
             }
             if (videoLengthMs > 0 && parsed >= videoLengthMs) {
@@ -216,7 +201,7 @@ public class LoopVideoButton {
         }
 
         if (endMs <= startMs) {
-            Utils.showToastShort(str(videoRangeInvalidTimeStringName));
+            Utils.showSnackbarShort(str(videoRangeInvalidTimeStringName));
             return;
         }
 
@@ -227,7 +212,7 @@ public class LoopVideoButton {
 
         LoopVideoPatch.setRange(startMs, endMs, endIsVideoEnd);
         Settings.LOOP_VIDEO.save(true);
-        Utils.showToastShort(str("morphe_loop_video_range_toast_on",
+        Utils.showSnackbarShort(str("morphe_loop_video_range_toast_on",
                 formatTime(startMs), formatTime(endMs)));
         updateButtonIcon();
     }

@@ -10,8 +10,8 @@ package app.morphe.patches.youtube.layout.hide.player.flyoutmenu
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.InstructionLocation.MatchAfterWithin
 import app.morphe.patcher.methodCall
-import app.morphe.patches.all.misc.resources.ResourceType
-import app.morphe.patches.all.misc.resources.resourceLiteral
+import app.morphe.patcher.resource.ResourceType
+import app.morphe.patcher.resourceLiteral
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 
@@ -26,6 +26,39 @@ internal object CaptionsOldBottomSheetLayoutInflaterFingerprint : Fingerprint(
             name = "findViewById",
             location = MatchAfterWithin(3)
         ),
+        resourceLiteral(ResourceType.STRING, "subtitle_menu_settings_footer_info"),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            smali = "Landroid/widget/ListView;->addFooterView(Landroid/view/View;Ljava/lang/Object;Z)V"
+        )
+    )
+)
+
+/**
+ * 21.44+ sets up the header of [CaptionsOldBottomSheetFooterFingerprint] in a static method.
+ */
+internal object CaptionsOldBottomSheetHeaderFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
+    returnType = "V",
+    parameters = listOf("Landroid/view/View;", "Landroid/content/Context;", "L", "L"),
+    filters = listOf(
+        resourceLiteral(ResourceType.ID, "bottom_sheet_title"),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            name = "findViewById",
+            location = MatchAfterWithin(3)
+        )
+    )
+)
+
+/**
+ * 21.44+ captions bottom sheet, without the header of [CaptionsOldBottomSheetHeaderFingerprint].
+ */
+internal object CaptionsOldBottomSheetFooterFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "Landroid/view/View;",
+    parameters = listOf("Landroid/view/LayoutInflater;", "Landroid/view/ViewGroup;", "Landroid/os/Bundle;"),
+    filters = listOf(
         resourceLiteral(ResourceType.STRING, "subtitle_menu_settings_footer_info"),
         methodCall(
             opcode = Opcode.INVOKE_VIRTUAL,

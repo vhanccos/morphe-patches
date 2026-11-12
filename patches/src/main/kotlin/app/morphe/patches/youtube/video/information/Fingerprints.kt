@@ -60,11 +60,46 @@ internal object ChannelInformationFingerprint : Fingerprint(
     )
 )
 
+/**
+ * Makes a playback the current one, such as a preloaded Short when it's scrolled to,
+ * which is not loaded again with loadVideo().
+ */
+internal fun currentPlaybackFingerprint(playerResponseType: String) = Fingerprint(
+    classFingerprint = PlayerInitFingerprint,
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "V",
+    parameters = listOf("L"),
+    filters = listOf(
+        fieldAccess(
+            opcode = Opcode.IPUT_OBJECT,
+            definingClass = "this"
+        ),
+        // The player response of the playback.
+        methodCall(
+            returnType = playerResponseType,
+            parameters = listOf()
+        ),
+        opcode(Opcode.MOVE_RESULT_OBJECT, location = MatchAfterImmediately()),
+        opcode(Opcode.IF_EQZ, location = MatchAfterImmediately()),
+        methodCall(
+            opcode = Opcode.INVOKE_STATIC,
+            parameters = listOf(playerResponseType, "L"),
+            location = MatchAfterImmediately()
+        )
+    )
+)
+
 internal fun getChannelIdFingerprint(playerResponseType: String) = object : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "V",
     parameters = listOf("Ljava/lang/Object;"),
     filters = listOf(
+        // Is live stream.
+        methodCall(
+            definingClass = playerResponseType,
+            returnType = "Z"
+        ),
+        // Channel id. 21.17 places the live stream check far before it.
         methodCall(
             definingClass = playerResponseType,
             returnType = "Ljava/lang/String;"
@@ -91,13 +126,17 @@ internal fun getVideoTitleFingerprint(playerResponseType: String) = object : Fin
     )
 ) {}
 
+/**
+ * The channel name is read for the "Person" metadata of the app indexing.
+ * Some targets, such as 21.09, have the "setMetadata may only be called once" check in another place.
+ */
 internal fun getChannelNameFingerprint(playerResponseType: String) = object : Fingerprint(
     filters = listOf(
-        string("setMetadata may only be called once"),
+        string("Person"),
         methodCall(
             definingClass = playerResponseType,
             returnType = "Ljava/lang/String;",
-            location = MatchAfterWithin(30)
+            location = MatchAfterWithin(5)
         )
     )
 ) {}
@@ -240,6 +279,7 @@ internal object PlaybackSpeedMenuSpeedChangedFingerprint : Fingerprint(
     returnType = "L",
     parameters = listOf("L"),
     filters = listOf(
+        opcode(Opcode.IF_EQZ),
         fieldAccess(opcode = Opcode.IGET, type = "F")
     )
 )
@@ -317,45 +357,5 @@ internal object SetVideoQualityFingerprint : Fingerprint(
             definingClass = "this",
             location = MatchAfterImmediately()
         ),
-    )
-)
-
-/**
- * Matches method {androidx.media3.exoplayer.ExoPlayerImpl.setPlaybackParameters(PlaybackParameters p1)}
- *
- * @param playbackParametersType The PlaybackParameters type, obtained from [PlaybackParametersToStringFingerprint].
- */
-internal fun getPlaybackParametersSetterFingerprint(playbackParametersType: String) = object : Fingerprint(
-    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
-    returnType = "V",
-    parameters = listOf(playbackParametersType),
-    custom = { methodDef, classDef ->
-        methodDef.implementation != null
-            && classDef.interfaces.contains("Landroidx/media3/exoplayer/ExoPlayer;")
-    }
-) {}
-
-internal fun getExoPlayerImplFingerprint(playbackParametersType: String) = object : Fingerprint(
-    classFingerprint = getPlaybackParametersSetterFingerprint(playbackParametersType),
-    name = "<init>",
-    filters = listOf(
-        methodCall(
-            opcode = Opcode.INVOKE_DIRECT,
-            name = "<init>"
-        )
-    )
-) {}
-
-/**
- * Matches method {androidx.media3.common.PlaybackParameters}.toString()
- */
-internal object PlaybackParametersToStringFingerprint : Fingerprint(
-    name = "toString",
-    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
-    returnType = "Ljava/lang/String;",
-    parameters = listOf(),
-    filters = listOf(
-        fieldAccess(definingClass = "this", opcode = Opcode.IGET, type = "F"),
-        string("PlaybackParameters(speed=%.2f, pitch=%.2f)")
     )
 )

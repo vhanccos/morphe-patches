@@ -10,15 +10,13 @@
 package app.morphe.patches.music.misc.litho.filter
 
 import app.morphe.patches.music.misc.extension.sharedExtensionPatch
-import app.morphe.patches.music.misc.litho.context.conversionContextPatch
+import app.morphe.patches.shared.misc.litho.context.conversionContextPatch
 import app.morphe.patches.shared.misc.litho.filter.sharedLithoFilterPatch
 
 val lithoFilterPatch = sharedLithoFilterPatch(
-    // Supported YT Music versions always use the native Upb encode path.
-    hookNonNativeBuffer = { false },
     // YT Music does not ship the Upb feature flag.
     overrideUpbFeatureFlag = { false },
-    useLegacyLithoFiltering = { false }
+    removeFilteredListItems = false
 ) {
     dependsOn(
         sharedExtensionPatch,

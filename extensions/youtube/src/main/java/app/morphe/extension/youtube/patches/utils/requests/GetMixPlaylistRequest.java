@@ -15,6 +15,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -25,7 +26,6 @@ import java.util.concurrent.TimeoutException;
 import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.Utils;
 import app.morphe.extension.shared.requests.Requester;
-import app.morphe.extension.shared.settings.BaseSettings;
 
 public class GetMixPlaylistRequest {
     /**
@@ -38,8 +38,8 @@ public class GetMixPlaylistRequest {
 
     private static final long MAX_MILLISECONDS_TO_WAIT_FOR_FETCH = 10 * 1000; // 10 seconds
 
-    private static final Map<String, GetMixPlaylistRequest> cache =
-            Utils.createSizeRestrictedMap(30);
+    private static final Map<String, GetMixPlaylistRequest> cache = Collections.synchronizedMap(
+            Utils.createSizeRestrictedMap(30));
 
     public final String videoId;
     private final Future<Boolean> future;
@@ -56,10 +56,9 @@ public class GetMixPlaylistRequest {
             final long maxWaitTime = Utils.isCurrentlyOnMainThread()
                     ? MAX_MILLISECONDS_TO_BLOCK_UI_WAITING_FOR_FETCH
                     : MAX_MILLISECONDS_TO_WAIT_FOR_FETCH;
-            if (BaseSettings.DEBUG.get() && !future.isDone()) {
-                Logger.printDebug(() -> "Waiting until fetch is complete: " + videoId
-                        + " maxWait: " + maxWaitTime);
-            }
+            Logger.printDebug(() -> future.isDone()
+                    ? null
+                    : "Waiting until fetch is complete: " + videoId + " maxWait: " + maxWaitTime);
             return future.get(maxWaitTime, TimeUnit.MILLISECONDS);
         } catch (TimeoutException ex) {
             Logger.printInfo(() -> "getResult timed out: " + videoId, ex);
@@ -103,8 +102,8 @@ public class GetMixPlaylistRequest {
             HttpURLConnection connection = PlaylistRoutes.getConnection(PlaylistRoutes.GET_MIX_PLAYLIST, requestHeader);
             connection.setFixedLengthStreamingMode(requestBody.length);
             connection.getOutputStream().write(requestBody);
-            int responseCode = connection.getResponseCode();
-            if (responseCode == 200) {
+            final int responseCode = connection.getResponseCode();
+            if (responseCode == Requester.HTTP_STATUS_CODE_SUCCESS) {
                 return Requester.parseJSONObject(connection);
             }
             handleConnectionError("Get mix playlist failed with code: " + responseCode, null);
@@ -135,14 +134,21 @@ public class GetMixPlaylistRequest {
             }
             JSONObject navigationEndpoint = firstPlaylistContent.getJSONObject("playlistPanelVideoRenderer")
                     .getJSONObject("navigationEndpoint");
-            if (!navigationEndpoint.has("coWatchWatchEndpointWrapperCommand")) {
-                return false;
-            }
-            JSONObject watchEndpoint = navigationEndpoint.getJSONObject("coWatchWatchEndpointWrapperCommand")
-                    .getJSONObject("watchEndpoint")
-                    .getJSONObject("watchEndpoint");
 
-            if (!watchEndpoint.has("playerParams")) {
+            // YouTube removed the "coWatchWatchEndpointWrapperCommand" wrapper and now returns
+            // the watch endpoint directly under the navigation endpoint, which broke
+            // music detection (https://github.com/MorpheApp/morphe-patches/issues/2936).
+            // Support both the new direct path and the legacy wrapper path.
+            JSONObject watchEndpoint = null;
+            if (navigationEndpoint.has("watchEndpoint")) {
+                watchEndpoint = navigationEndpoint.getJSONObject("watchEndpoint");
+            } else if (navigationEndpoint.has("coWatchWatchEndpointWrapperCommand")) {
+                watchEndpoint = navigationEndpoint.getJSONObject("coWatchWatchEndpointWrapperCommand")
+                        .getJSONObject("watchEndpoint")
+                        .getJSONObject("watchEndpoint");
+            }
+
+            if (watchEndpoint == null || !watchEndpoint.has("playerParams")) {
                 return false;
             }
 

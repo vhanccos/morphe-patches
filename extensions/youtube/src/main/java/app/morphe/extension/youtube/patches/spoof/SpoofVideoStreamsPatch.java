@@ -4,6 +4,9 @@ import java.util.List;
 
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.spoof.ClientType;
+import app.morphe.extension.youtube.patches.DisableVideoCodecsPatch;
+import app.morphe.extension.youtube.patches.DisableVideoCodecsPatch.VideoCodec;
+import app.morphe.extension.youtube.patches.InAppDownloadsPatch;
 import app.morphe.extension.youtube.settings.Settings;
 
 @SuppressWarnings("unused")
@@ -27,12 +30,16 @@ public class SpoofVideoStreamsPatch {
      * Injection point.
      */
     public static void setClientOrderToUse() {
+        app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch.setOfflineResponseResolver(
+                InAppDownloadsPatch::isOfflinePlayerResponse);
+
         ClientType client = Settings.SPOOF_VIDEO_STREAMS_CLIENT_TYPE.get();
 
         // Use [Android XR, Android XR Downgraded, visonOS 1.03] client that has AV1 if user settings allow it.
         // AVC cannot be forced with [Android XR, Android XR Downgraded, visonOS 1.03] because it uses VP9 and AV1.
-        // If both settings are on, then force AVC takes priority and [Android VR, Android VR Downgraded, visonOS 1.02] is used.
-        if (Settings.SPOOF_VIDEO_STREAMS_AV1.get() && !Settings.FORCE_AVC_CODEC.get() ) {
+        // VP9 blocks AV1, so the AV1 clients are not used.
+        final VideoCodec codec = DisableVideoCodecsPatch.getVideoCodec();
+        if (Settings.SPOOF_VIDEO_STREAMS_AV1.get() && codec == VideoCodec.DEFAULT) {
             if (client == ClientType.ANDROID_VR_DASH) {
                 client = ClientType.ANDROID_XR_DASH;
             } else if (client == ClientType.ANDROID_VR_SABR) {
@@ -43,8 +50,7 @@ public class SpoofVideoStreamsPatch {
         }
 
         List<ClientType> availableClients = List.of(
-                ClientType.TV_SIMPLY,
-                ClientType.VISIONOS_1_02,
+                ClientType.TV_SABR,
                 ClientType.ANDROID_CREATOR
                 // If not signed in to Android VR, there may be playback issues.
                 // Only use it if the user has selected it.

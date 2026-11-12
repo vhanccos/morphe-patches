@@ -1,9 +1,11 @@
 /*
  * Copyright 2026 Morphe.
  * https://github.com/MorpheApp/morphe-patches/pull/1065
+ * https://github.com/MorpheApp/morphe-patches/pull/3635
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  */
+
 package app.morphe.extension.music.settings.preference;
 
 import static app.morphe.extension.shared.StringRef.str;
@@ -28,14 +30,11 @@ import androidx.annotation.NonNull;
 
 import java.util.Locale;
 
-import app.morphe.extension.music.patches.CrossfadeManager.FadeCurve;
+import app.morphe.extension.music.patches.CrossfadePatch.FadeCurve;
 import app.morphe.extension.music.settings.Settings;
+import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.ui.Dim;
 
-/**
- * Custom preference that renders a live preview of the selected crossfade curve.
- * Polls the Settings values to detect changes and re-renders.
- */
 @SuppressWarnings({"unused", "deprecation"})
 public final class CrossfadeCurvePreference extends Preference
         implements SharedPreferences.OnSharedPreferenceChangeListener {
@@ -123,7 +122,9 @@ public final class CrossfadeCurvePreference extends Preference
             if (prefs != null) {
                 prefs.registerOnSharedPreferenceChangeListener(this);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ex) {
+            Logger.printDebug(() -> "onAttachedToHierarchy failure", ex);
+        }
     }
 
     @Override

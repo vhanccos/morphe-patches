@@ -21,7 +21,6 @@ import app.morphe.extension.youtube.settings.Settings;
 import app.morphe.extension.youtube.shared.PlayerType;
 import app.morphe.extension.youtube.videoplayer.LegacyPlayerControlButton;
 import app.morphe.extension.youtube.videoplayer.LegacyPlayerControlButton.ButtonVisibility;
-import kotlin.Unit;
 
 public class SponsorBlockViewController {
     public static final int ROUNDED_LAYOUT_MARGIN = 12;
@@ -41,7 +40,6 @@ public class SponsorBlockViewController {
     static {
         PlayerType.getOnChange().addObserver((PlayerType type) -> {
             playerTypeChanged(type);
-            return Unit.INSTANCE;
         });
     }
 
@@ -190,8 +188,10 @@ public class SponsorBlockViewController {
     }
 
     public static void hideSkipSegmentButton() {
-        if (!Settings.SB_AUTO_HIDE_SKIP_BUTTON.get()) {
-            // Must retain segment for auto hide because skip button is shown when player overlay is active.
+        if (!Settings.SB_AUTO_HIDE_SKIP_BUTTON.get()
+                || !SegmentPlaybackController.currentlyInsideSkippableSegment()) {
+            // Must retain segment for auto hide while inside segment
+            // because skip button is shown when player overlay is active.
             skipSegment = null;
         }
         updateSkipButton(skipSponsorButtonRef.get(), null, false);
@@ -253,8 +253,11 @@ public class SponsorBlockViewController {
             canShowViewElements = (isWatchFullScreen || playerType == PlayerType.WATCH_WHILE_MAXIMIZED);
 
             NewSegmentLayout newSegmentLayout = newSegmentLayoutRef.get();
-            setNewSegmentLayoutMargins(newSegmentLayout, isWatchFullScreen);
-            setViewVisibility(newSegmentLayoutRef.get(), newSegmentLayoutVisible);
+            if (newSegmentLayout != null) {
+                setLayoutMargins(newSegmentLayout, isWatchFullScreen,
+                        newSegmentLayout.defaultBottomMargin, newSegmentLayout.ctaBottomMargin);
+            }
+            setViewVisibility(newSegmentLayout, newSegmentLayoutVisible);
 
             SkipSponsorButton skipHighlightButton = skipHighlightButtonRef.get();
             setSkipButtonMargins(skipHighlightButton, isWatchFullScreen);
@@ -262,17 +265,12 @@ public class SponsorBlockViewController {
 
             SkipSponsorButton skipSponsorButton = skipSponsorButtonRef.get();
             setSkipButtonMargins(skipSponsorButton, isWatchFullScreen);
-            setViewVisibility(skipSponsorButton, skipSegment != null);
+            setViewVisibility(skipSponsorButton, skipSegment != null && SegmentPlaybackController.currentlyInsideSkippableSegment());
         } catch (Exception ex) {
             Logger.printException(() -> "playerTypeChanged failure", ex);
         }
     }
 
-    private static void setNewSegmentLayoutMargins(@Nullable NewSegmentLayout layout, boolean fullScreen) {
-         if (layout != null) {
-            setLayoutMargins(layout, fullScreen, layout.defaultBottomMargin, layout.ctaBottomMargin);
-        }
-    }
     private static void setSkipButtonMargins(@Nullable SkipSponsorButton button, boolean fullScreen) {
         if (button != null) {
             setLayoutMargins(button, fullScreen, button.defaultBottomMargin, button.ctaBottomMargin);
@@ -282,7 +280,7 @@ public class SponsorBlockViewController {
                                          int defaultBottomMargin, int ctaBottomMargin) {
         RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) view.getLayoutParams();
         if (params == null) {
-            Logger.printException(() -> "Unable to setNewSegmentLayoutMargins (params are null)");
+            Logger.printException(() -> "Unable to setLayoutMargins (params are null)");
             return;
         }
         params.bottomMargin = fullScreen ? ctaBottomMargin : defaultBottomMargin;

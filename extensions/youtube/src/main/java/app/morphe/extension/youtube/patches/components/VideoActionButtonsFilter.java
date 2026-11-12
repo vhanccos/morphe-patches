@@ -10,16 +10,13 @@
 
 package app.morphe.extension.youtube.patches.components;
 
-import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 
-import com.google.protobuf.MessageLite;
-
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.Utils;
@@ -30,24 +27,28 @@ import app.morphe.extension.shared.patches.components.ContextInterface;
 import app.morphe.extension.shared.patches.components.Filter;
 import app.morphe.extension.shared.patches.components.StringFilterGroup;
 import app.morphe.extension.shared.patches.components.StringFilterGroupList;
-import app.morphe.extension.youtube.innertube.NextResponseOuterClass.ActionButtons;
-import app.morphe.extension.youtube.innertube.NextResponseOuterClass.NewElement;
-import app.morphe.extension.youtube.innertube.NextResponseOuterClass.SecondaryContents;
-import app.morphe.extension.youtube.innertube.NextResponseOuterClass.SingleColumnWatchNextResults;
-import app.morphe.extension.youtube.patches.VideoInformation;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.ComponentType;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.Element;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.ElementModel;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.LockupModel;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.VideoActionBarItem;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.VideoActionBarItemContent;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.VideoActionBarModel;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.VideoActionBarOverflow;
+import app.morphe.extension.youtube.innertube.FeedCardLayoutOuterClass.VideoActionBarViewModel;
+import app.morphe.extension.youtube.patches.utils.FeedVideoCardsPatch;
 import app.morphe.extension.youtube.settings.Settings;
 
 @SuppressWarnings("unused")
 public final class VideoActionButtonsFilter extends Filter {
 
     public enum ActionButton {
-        UNKNOWN(false),
         ASK(
                 Settings.HIDE_ASK_BUTTON.get(),
                 "yt_fill_experimental_spark",
                 "yt_fill_spark"
         ),
-        CHANNEL_PROFILE(false),
+        CHANNEL_PROFILE(Settings.HIDE_CHANNEL_PROFILE_BUTTON.get()),
         CLIP(Settings.HIDE_CLIP_BUTTON.get()),
         COMMENTS(
                 Settings.HIDE_COMMENTS_BUTTON.get(),
@@ -118,7 +119,7 @@ public final class VideoActionButtonsFilter extends Filter {
     }
 
     /**
-     * Whether to perform {@link #onLazilyConvertedElementLoaded(String, List)}.
+     * Whether to perform {@link #hideActionButtons(byte[])}.
      */
     private static final boolean HIDE_ACTION_BUTTON;
 
@@ -133,23 +134,24 @@ public final class VideoActionButtonsFilter extends Filter {
         HIDE_ACTION_BUTTON = hideActionButton;
     }
 
-    /**
-     * Caches a list of action buttons based on video ID.
-     */
-    @GuardedBy("itself")
-    private static final Map<String, List<ActionButton>> actionButtonLookup =
-            Utils.createSizeRestrictedMap(10);
-
     private static final String COMPACT_CHANNEL_BAR_PREFIX = "compact_channel_bar.e";
     private static final String COMPACTIFY_VIDEO_ACTION_BAR_PREFIX = "compactify_video_action_bar.e";
     private static final String VIDEO_ACTION_BAR_PREFIX = "video_action_bar.e";
+
+    /**
+     * Panel that the Ask button opens, which is in the button whatever its type is.
+     */
+    private static final String ASK_PANEL_ID = "PAyouchat";
 
     private static final String ELEMENT_BUTTON_ID = "id.elements.button";
     private static final String MORE_BUTTON_PATH = "overflow_menu_button.e";
 
     private final StringFilterGroup actionBarGroup;
+    private final StringFilterGroup channelBarGroup;
     private final StringFilterGroup likeSubscribeGlow;
     private final StringFilterGroup moreButton;
+    private final StringFilterGroup channelProfile;
+    private final StringFilterGroup subscribeButton;
     private final StringFilterGroupList accessibilityGroupList = new StringFilterGroupList();
     private final ByteArrayFilterGroupList bufferGroupList = new ByteArrayFilterGroupList();
 
@@ -158,7 +160,12 @@ public final class VideoActionButtonsFilter extends Filter {
                 null,
                 VIDEO_ACTION_BAR_PREFIX
         );
-        addIdentifierCallbacks(actionBarGroup);
+        // Some layouts show the channel in its own bar above the action bar.
+        channelBarGroup = new StringFilterGroup(
+                Settings.HIDE_CHANNEL_PROFILE_BUTTON,
+                COMPACT_CHANNEL_BAR_PREFIX
+        );
+        addIdentifierCallbacks(actionBarGroup, channelBarGroup);
 
 
         likeSubscribeGlow = new StringFilterGroup(
@@ -170,7 +177,18 @@ public final class VideoActionButtonsFilter extends Filter {
                 MORE_BUTTON_PATH
         );
 
-        addPathCallbacks(likeSubscribeGlow, moreButton);
+        // The minimal layout draws no action bar without the channel in its element, so the channel is hidden here.
+        channelProfile = new StringFilterGroup(
+                Settings.HIDE_CHANNEL_PROFILE_BUTTON,
+                "|compact_channel_bar.e"
+        );
+
+        subscribeButton = new StringFilterGroup(
+                Settings.HIDE_CHANNEL_PROFILE_SUBSCRIBE_BUTTON,
+                "|compact_channel_bar_animated_buttons.e"
+        );
+
+        addPathCallbacks(channelProfile, likeSubscribeGlow, moreButton, subscribeButton);
 
         //
         // All other action buttons.
@@ -193,7 +211,7 @@ public final class VideoActionButtonsFilter extends Filter {
         bufferGroupList.addAll(
                 new ByteArrayFilterGroup(
                         Settings.HIDE_ASK_BUTTON,
-                        "PAyouchat"
+                        ASK_PANEL_ID
                 ),
                 new ByteArrayFilterGroup(
                         Settings.HIDE_HYPE_BUTTON,
@@ -207,7 +225,7 @@ public final class VideoActionButtonsFilter extends Filter {
     public boolean isFiltered(ContextInterface contextInterface,
                               String identifier,
                               String accessibility,
-                              String path,
+                              CharSequence path,
                               byte[] buffer,
                               BufferAsciiStrings asciiStrings,
                               StringFilterGroup matchedGroup,
@@ -217,10 +235,14 @@ public final class VideoActionButtonsFilter extends Filter {
             return Utils.startsWithAny(path, COMPACT_CHANNEL_BAR_PREFIX, COMPACTIFY_VIDEO_ACTION_BAR_PREFIX, VIDEO_ACTION_BAR_PREFIX);
         } else if (matchedGroup == moreButton) {
             return true;
+        } else if (matchedGroup == channelProfile || matchedGroup == subscribeButton) {
+            // Only the Subscribe and Join buttons next to the channel avatar in the action bar,
+            // or in the channel bar above it.
+            return Utils.startsWithAny(path, COMPACT_CHANNEL_BAR_PREFIX, COMPACTIFY_VIDEO_ACTION_BAR_PREFIX, VIDEO_ACTION_BAR_PREFIX);
         } else if (matchedGroup == actionBarGroup) {
             if (Settings.HIDE_ACTION_BAR.get() || accessibilityGroupList.check(accessibility).isFiltered()) {
                 return true;
-            } else if (accessibility != null && accessibility.startsWith(ELEMENT_BUTTON_ID) && !path.contains(MORE_BUTTON_PATH)) {
+            } else if (accessibility != null && accessibility.startsWith(ELEMENT_BUTTON_ID) && !Utils.contains(path, MORE_BUTTON_PATH)) {
                 return bufferGroupList.check(buffer).isFiltered();
             }
             return false;
@@ -231,180 +253,132 @@ public final class VideoActionButtonsFilter extends Filter {
 
     /**
      * Injection point.
-     * Called after {@link #onSingleColumnWatchNextResultsLoaded(MessageLite)}.
+     * <p>
+     * Removes the hidden buttons from the element of the action bar, for every layout of the action bar.
      */
-    public static void onLazilyConvertedElementLoaded(String identifier, List<Object> treeNodeResultList) {
-        // Check if hide video action buttons is enabled.
-        if (!HIDE_ACTION_BUTTON) {
-            return;
+    public static byte[] hideActionButtons(byte[] bytes) {
+        if (!HIDE_ACTION_BUTTON || !FeedVideoCardsPatch.getElementText(bytes).contains(VIDEO_ACTION_BAR_PREFIX)) {
+            return bytes;
         }
-        // Check if it is a video action bar.
-        if (!Utils.startsWithAny(identifier, COMPACTIFY_VIDEO_ACTION_BAR_PREFIX, VIDEO_ACTION_BAR_PREFIX)) {
-            return;
-        }
-        synchronized (actionButtonLookup) {
-            // Check if a video action button list exists in actionButtonLookup.
-            String videoId = VideoInformation.getVideoId();
-            List<ActionButton> actionButtons = actionButtonLookup.get(videoId);
-            if (actionButtons == null) {
-                return;
-            }
 
-            // Check that the size of actionButtons matches the size of treeNodeResultList.
-            // If they don't match, unintended buttons may be hidden.
-            int actionButtonSize = actionButtons.size();
-            int treeNodeResultListSize = treeNodeResultList.size();
-            if (actionButtonSize != treeNodeResultListSize) {
-                // Should never happen, but handle just in case.
-                Logger.printDebug(() -> "The sizes of the lists do not match, actionButtonSize: " + actionButtonSize + ", treeNodeResultListSize: " + treeNodeResultListSize);
-                return;
-            }
+        try {
+            Element element = Element.parseFrom(bytes);
+            ComponentType componentType = element.getType().getComponentType();
+            ElementModel model = componentType.getModel();
+            ElementModel.Builder newModel = model.toBuilder();
 
-            // Remove buttons from treeNodeResultList by iterating over actionButtons.
-            for (int i = actionButtonSize - 1; i > -1; i--) {
-                ActionButton actionButton = actionButtons.get(i);
-                if (actionButton.shouldHide && i < treeNodeResultListSize) {
-                    treeNodeResultList.remove(i);
+            if (model.hasVideoActionBarModel()) {
+                VideoActionBarModel actionBarModel = model.getVideoActionBarModel();
+                newModel.setVideoActionBarModel(actionBarModel.toBuilder()
+                        .setVideoActionBarData(actionBarModel.getVideoActionBarData().toBuilder()
+                                .clearActions()
+                                .addAllActions(getShownActions(actionBarModel.getVideoActionBarData().getActionsList()))));
+            } else if (model.getLockupModel().getViewModel().hasVideoActionBarViewModel()) {
+                LockupModel lockupModel = model.getLockupModel();
+                VideoActionBarViewModel actionBar = lockupModel.getViewModel().getVideoActionBarViewModel();
+                List<VideoActionBarItem> shownActions = getShownActions(actionBar.getActionsList());
+                VideoActionBarViewModel.Builder newActionBar = actionBar.toBuilder()
+                        .clearActions()
+                        .addAllActions(shownActions);
+                // The minimal layout draws no action bar without an item, not even the channel.
+                // The filter hides the item that is kept, by its path or its accessibility id.
+                if (shownActions.isEmpty() && actionBar.hasSubscribeButton() && actionBar.getActionsCount() > 0) {
+                    newActionBar.addActions(actionBar.getActions(0));
                 }
+                newModel.setLockupModel(lockupModel.toBuilder()
+                        .setViewModel(lockupModel.getViewModel().toBuilder()
+                                .setVideoActionBarViewModel(newActionBar)));
+            } else {
+                return bytes;
             }
+
+            return element.toBuilder()
+                    .setType(element.getType().toBuilder()
+                            .setComponentType(componentType.toBuilder().setModel(newModel)))
+                    .build()
+                    .toByteArray();
+        } catch (Exception ex) {
+            Logger.printException(() -> "hideActionButtons failure", ex);
         }
+
+        return bytes;
     }
 
-    /**
-     * Injection point.
-     * Invoke as soon as the endpoint response is received.
-     * <p>
-     * The code to parse the nested innerTube response structure is quite complex,
-     * but due to the efficient parsing performance of the proto parser, the parsing is completed within 20ms.
-     */
-    public static void onSingleColumnWatchNextResultsLoaded(MessageLite messageLite) {
-        // Check if hide video action buttons is enabled.
-        if (!HIDE_ACTION_BUTTON) {
-            return;
-        }
-        synchronized (actionButtonLookup) {
-            try {
-                var singleColumnWatchNextResults = SingleColumnWatchNextResults.parseFrom(messageLite.toByteArray());
-                var primaryResults = singleColumnWatchNextResults.getPrimaryResults();
-                var secondaryResults = primaryResults.getSecondaryResults();
-
-                // Find the contents that have slimVideoMetadataSectionRenderer.
-                SecondaryContents finalSecondaryContents = null;
-                for (var secondaryContents : secondaryResults.getSecondaryContentsList()) {
-                    if (secondaryContents.hasSlimVideoMetadataSectionRenderer()) {
-                        finalSecondaryContents = secondaryContents;
-                        break;
-                    }
+    private static List<VideoActionBarItem> getShownActions(List<VideoActionBarItem> actions) {
+        List<VideoActionBarItem> shownActions = new ArrayList<>(actions.size());
+        for (VideoActionBarItem action : actions) {
+            VideoActionBarItemContent content = action.getContent();
+            if (!content.hasOverflow()) {
+                if (!isHidden(content)) {
+                    shownActions.add(action);
                 }
-                if (finalSecondaryContents == null) return;
+                continue;
+            }
 
-                var slimVideoMetadataSectionRenderer = finalSecondaryContents.getSlimVideoMetadataSectionRenderer();
-
-                // slimVideoMetadataSectionRenderer has a videoId field.
-                var videoId = slimVideoMetadataSectionRenderer.getVideoId();
-
-                // If there is already an ActionButton list in actionButtonLookup, it just exits.
-                if (actionButtonLookup.containsKey(videoId)) {
-                    return;
+            // The overflow menu of the minimal layout, which is not shown without its items.
+            VideoActionBarOverflow.Builder overflow = content.getOverflow().toBuilder()
+                    .clearMenuItems()
+                    .clearShownItems();
+            for (VideoActionBarItemContent item : content.getOverflow().getMenuItemsList()) {
+                if (!isHidden(item)) {
+                    overflow.addMenuItems(item);
                 }
-
-                // Find a NewElement that has a video action bar.
-                NewElement finalNewElement = null;
-                for (var tertiaryContentsList : slimVideoMetadataSectionRenderer.getTertiaryContentsList()) {
-                    var elementRenderer = tertiaryContentsList.getElementRenderer();
-                    var newElement = elementRenderer.getNewElement();
-                    var properties = newElement.getProperties();
-                    var identifierProperties = properties.getIdentifierProperties();
-                    String identifier = identifierProperties.getIdentifier();
-                    if (Utils.startsWithAny(identifier, COMPACTIFY_VIDEO_ACTION_BAR_PREFIX, VIDEO_ACTION_BAR_PREFIX)) {
-                        finalNewElement = newElement;
-                        break;
-                    }
+            }
+            for (VideoActionBarItemContent item : content.getOverflow().getShownItemsList()) {
+                if (!isHidden(item)) {
+                    overflow.addShownItems(item);
                 }
-                if (finalNewElement == null) return;
-
-                var type = finalNewElement.getType();
-                var componentType = type.getComponentType();
-                var model = componentType.getModel();
-                List<ActionButtons> finalActionButtons = null;
-
-                if (model.hasYoutubeModel()) { // Collapsed video action bar.
-                    var youtubeModel = model.getYoutubeModel();
-                    var viewModel = youtubeModel.getViewModel();
-                    var compactifyVideoActionBarViewModel = viewModel.getCompactifyVideoActionBarViewModel();
-
-                    finalActionButtons = compactifyVideoActionBarViewModel.getActionButtonsList();
-                } else if (model.hasVideoActionBarModel()) { // Non-collapsed video action bar.
-                    var videoActionBarModel = model.getVideoActionBarModel();
-                    var videoActionBarData = videoActionBarModel.getVideoActionBarData();
-
-                    finalActionButtons = videoActionBarData.getActionButtonsList();
-                } else {
-                    // Should never happen, but handle just in case.
-                    Logger.printDebug(() -> "Unknown model: " + model + ", videoId: " + videoId);
-                }
-                if (finalActionButtons == null || finalActionButtons.isEmpty()) return;
-
-                int size = finalActionButtons.size();
-                int i = 0;
-                List<ActionButton> actionButtons = new ArrayList<>(size);
-
-                // Iterate through the action bar and populate the ActionButton list.
-                for (var buttons : finalActionButtons) {
-                    ActionButton actionButton = ActionButton.UNKNOWN;
-                    var primaryButtonViewModel = buttons.getPrimaryButtonViewModel();
-                    if (primaryButtonViewModel.hasSecondaryButtonViewModel()) {
-                        var secondaryButtonViewModel = primaryButtonViewModel.getSecondaryButtonViewModel();
-                        String iconName = secondaryButtonViewModel.getIconName();
-                        if (iconName != null) {
-                            for (ActionButton button : ActionButton.values()) {
-                                if (actionButton == ActionButton.UNKNOWN) {
-                                    for (String icon : button.iconNames) {
-                                        if (iconName.contains(icon)) {
-                                            actionButton = button;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            // This is a new button that has not yet been implemented in settings.
-                            // It will be treated as 'ActionButton.UNKNOWN' and ignored.
-                            if (actionButton == ActionButton.UNKNOWN) {
-                                Logger.printDebug(() -> "Unknown iconName: " + iconName + ", videoId: " + videoId);
-                            }
-                        }
-                    } else if (primaryButtonViewModel.hasAccountLinkButtonViewModel()) {
-                        actionButton = ActionButton.CONNECT;
-                    } else if (primaryButtonViewModel.hasAddToPlaylistButtonViewModel()) {
-                        actionButton = ActionButton.SAVE;
-                    } else if (primaryButtonViewModel.hasClipButtonViewModel()) {
-                        actionButton = ActionButton.CLIP;
-                    }  else if (primaryButtonViewModel.hasCompactChannelBarViewModel()) {
-                        actionButton = ActionButton.CHANNEL_PROFILE;
-                    } else if (primaryButtonViewModel.hasDislikeButtonViewModel()) {
-                        actionButton = ActionButton.DISLIKE;
-                    } else if (primaryButtonViewModel.hasDownloadButtonViewModel()) {
-                        actionButton = ActionButton.DOWNLOAD;
-                    } else if (primaryButtonViewModel.hasLikeButtonViewModel()) {
-                        actionButton = ActionButton.LIKE;
-                    } else if (primaryButtonViewModel.hasOverflowMenuButtonViewModel()) {
-                        actionButton = ActionButton.MORE;
-                    } else if (primaryButtonViewModel.hasSegmentedLikeDislikeButtonViewModel()) {
-                        actionButton = ActionButton.LIKE_DISLIKE;
-                    } else {
-                        // Due to A/B testing, a new type of ButtonViewModel was used that was not defined in the proto file.
-                        Logger.printDebug(() -> "Unknown buttonViewModel: " + primaryButtonViewModel + ", videoId: " + videoId);
-                    }
-                    actionButtons.add(i, actionButton);
-                    i++;
-                }
-
-                // Once the iteration is complete, add the ActionButton list to actionButtonLookup.
-                Logger.printDebug(() -> "New video id: " + videoId + ", action buttons: " + actionButtons);
-                actionButtonLookup.put(videoId, actionButtons);
-            } catch (Exception ex) {
-                Logger.printException(() -> "Failed to parse SingleColumnWatchNextResults", ex);
+            }
+            boolean hasMenuItem = false;
+            for (VideoActionBarItemContent item : overflow.getMenuItemsList()) {
+                hasMenuItem |= !item.hasMenuHeader();
+            }
+            if (!ActionButton.MORE.shouldHide && hasMenuItem) {
+                shownActions.add(action.toBuilder().setContent(content.toBuilder().setOverflow(overflow)).build());
             }
         }
+        return shownActions;
+    }
+
+    private static boolean isHidden(VideoActionBarItemContent content) {
+        // Some layouts have an Ask button that is not a plain button, so it is found by the panel it opens.
+        if (ActionButton.ASK.shouldHide && new String(content.toByteArray(), StandardCharsets.ISO_8859_1)
+                .contains(ASK_PANEL_ID)) {
+            return true;
+        }
+
+        if (content.hasButton()) {
+            String iconName = content.getButton().getIconName();
+            for (ActionButton button : ActionButton.values()) {
+                for (String icon : button.iconNames) {
+                    if (iconName.contains(icon)) {
+                        return button.shouldHide;
+                    }
+                }
+            }
+            return false;
+        }
+
+        final ActionButton actionButton;
+        if (content.hasLikeDislikeButtons()) {
+            actionButton = ActionButton.LIKE_DISLIKE;
+        } else if (content.hasLikeButton()) {
+            actionButton = ActionButton.LIKE;
+        } else if (content.hasDislikeButton()) {
+            actionButton = ActionButton.DISLIKE;
+        } else if (content.hasSaveButton()) {
+            actionButton = ActionButton.SAVE;
+        } else if (content.hasDownloadButton()) {
+            actionButton = ActionButton.DOWNLOAD;
+        } else if (content.hasClipButton()) {
+            actionButton = ActionButton.CLIP;
+        } else if (content.hasAccountLinkButton()) {
+            actionButton = ActionButton.CONNECT;
+        } else if (content.hasSubscribeButton()) {
+            actionButton = ActionButton.CHANNEL_PROFILE;
+        } else {
+            return false;
+        }
+        return actionButton.shouldHide;
     }
 }

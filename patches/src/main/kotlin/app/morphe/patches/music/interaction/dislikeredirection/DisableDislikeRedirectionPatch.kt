@@ -9,28 +9,27 @@ package app.morphe.patches.music.interaction.dislikeredirection
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
-import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.methodCall
+import app.morphe.patcher.patch.patch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.music.misc.extension.sharedExtensionPatch
 import app.morphe.patches.music.misc.playservice.is_9_32_or_greater
+import app.morphe.patches.music.misc.playservice.is_9_35_or_greater
 import app.morphe.patches.music.misc.settings.PreferenceScreen
 import app.morphe.patches.music.misc.settings.settingsPatch
 import app.morphe.patches.music.shared.Constants.COMPATIBILITY_YOUTUBE_MUSIC
 import app.morphe.patches.shared.misc.settings.preference.SwitchPreference
-import app.morphe.util.getReference
 import app.morphe.util.indexOfFirstInstructionOrThrow
 import app.morphe.util.indexOfFirstInstructionReversedOrThrow
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
-import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val EXTENSION_CLASS =
     "Lapp/morphe/extension/music/patches/DisableDislikeRedirectionPatch;"
 
 @Suppress("unused")
-val disableDislikeRedirectionPatch = bytecodePatch(
+val disableDislikeRedirectionPatch = patch(
     name = "Disable dislike redirection",
     description = "Adds an option to prevent skipping to the next track when the dislike " +
             "button is pressed."
@@ -52,12 +51,22 @@ val disableDislikeRedirectionPatch = bytecodePatch(
             val notificationOnClickIndex = notificationFingerprint.instructionMatches.last().index
             notificationFingerprint.method.injectRedirectionGuard(notificationOnClickIndex)
 
-            DislikeButtonOnClickListenerFingerprint.method.apply {
-                val onClickIndex = indexOfFirstInstructionReversedOrThrow {
-                    (opcode == Opcode.INVOKE_INTERFACE || opcode == Opcode.INVOKE_VIRTUAL) &&
-                            getReference<MethodReference>()?.returnType == "V"
+            if (is_9_35_or_greater) {
+                // Skips to the next track in more than one place (dislike command handler
+                // and, on 9.36+, the like button click listener).
+                DislikeSkipToNextFingerprint.matchAll().forEach { match ->
+                    match.method.injectRedirectionGuard(match.instructionMatches.last().index)
                 }
-                injectRedirectionGuard(onClickIndex)
+            } else {
+                DislikeButtonOnClickListenerFingerprint.method.apply {
+                    val onClickIndex = indexOfFirstInstructionReversedOrThrow(
+                        methodCall(
+                            opcodes = listOf(Opcode.INVOKE_INTERFACE, Opcode.INVOKE_VIRTUAL),
+                            returnType = "V"
+                        )
+                    )
+                    injectRedirectionGuard(onClickIndex)
+                }
             }
         } else {
             // The notification and player handlers share the same onClick dispatch interface method,
@@ -65,7 +74,7 @@ val disableDislikeRedirectionPatch = bytecodePatch(
             val onClickReference = NotificationLikeButtonOnClickListenerFingerprint.let { fingerprint ->
                 fingerprint.method.let { method ->
                     val onClickIndex = fingerprint.instructionMatches.last().index
-                    val reference = method.getInstruction<ReferenceInstruction>(onClickIndex).reference
+                    val reference = fingerprint.instructionMatches.last().methodReference
 
                     method.injectRedirectionGuard(onClickIndex)
                     reference
@@ -73,9 +82,7 @@ val disableDislikeRedirectionPatch = bytecodePatch(
             }
 
             DislikeButtonOnClickListenerLegacyFingerprint.method.apply {
-                val onClickIndex = indexOfFirstInstructionOrThrow {
-                    getReference<MethodReference>() == onClickReference
-                }
+                val onClickIndex = indexOfFirstInstructionOrThrow(methodCall(onClickReference))
                 injectRedirectionGuard(onClickIndex)
             }
         }

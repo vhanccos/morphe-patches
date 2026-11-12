@@ -1,6 +1,13 @@
+/*
+ * Copyright 2026 Morphe.
+ * https://github.com/MorpheApp/morphe-patches
+ *
+ * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ */
+
 package app.morphe.patches.youtube.layout.buttons.overlay
 
-import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.patch
 import app.morphe.patches.shared.misc.settings.preference.BasePreference
 import app.morphe.patches.shared.misc.settings.preference.PreferenceScreenPreference
 import app.morphe.patches.youtube.misc.extension.sharedExtensionPatch
@@ -14,7 +21,7 @@ internal fun addPlayerOverlayPreferences(vararg preference: BasePreference) {
     playerOverlayPreferences!!.addAll(preference)
 }
 
-internal val playerOverlayButtonsSettingsPatch = bytecodePatch {
+internal val playerOverlayButtonsSettingsPatch = patch {
     dependsOn(
         sharedExtensionPatch,
         settingsPatch,

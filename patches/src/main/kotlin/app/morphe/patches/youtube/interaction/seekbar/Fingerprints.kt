@@ -19,12 +19,12 @@ import app.morphe.patcher.literal
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.newInstance
 import app.morphe.patcher.opcode
+import app.morphe.patcher.resource.ResourceType
+import app.morphe.patcher.resourceLiteral
 import app.morphe.patcher.string
-import app.morphe.patches.all.misc.resources.ResourceType
-import app.morphe.patches.all.misc.resources.resourceLiteral
 import app.morphe.patches.shared.FormatStreamModelToStringFingerprint
+import app.morphe.patches.shared.VideoStreamingDataToStringFingerprint
 import app.morphe.patches.youtube.shared.SeekbarFingerprint
-import app.morphe.patches.youtube.shared.VideoStreamingDataToStringFingerprint
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 
@@ -54,7 +54,7 @@ internal object AllowSwipingUpGestureFingerprint : Fingerprint(
 )
 
 internal object DisableFastForwardGestureFingerprint : Fingerprint(
-    definingClass = "/NextGenWatchLayout;",
+    definingClass = "Lcom/google/android/apps/youtube/app/watch/nextgenwatch/ui/NextGenWatchLayout;",
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "Z",
     parameters = listOf(),
@@ -73,21 +73,20 @@ internal object OnTouchEventHandlerFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.PUBLIC),
     returnType = "Z",
     parameters = listOf("L"),
-    filters = OpcodesFilter.opcodesToFilters(
-        Opcode.INVOKE_VIRTUAL, // nMethodReference
-        Opcode.RETURN,
-        Opcode.IGET_OBJECT,
-        Opcode.IGET_BOOLEAN,
-        Opcode.IF_EQZ,
-        Opcode.INVOKE_VIRTUAL,
-        Opcode.RETURN,
-        Opcode.INT_TO_FLOAT,
-        Opcode.INT_TO_FLOAT,
-        Opcode.INVOKE_VIRTUAL,
-        Opcode.MOVE_RESULT,
-        Opcode.IF_EQZ,
-        Opcode.INVOKE_VIRTUAL,
-        Opcode.INVOKE_VIRTUAL, // oMethodReference
+    filters = listOf(
+        opcode(Opcode.INVOKE_VIRTUAL), // nMethodReference
+        // Skip over a return (21.41 and lower) or goto (21.42+).
+        opcode(Opcode.IGET_OBJECT, location = MatchAfterWithin(1)),
+        opcode(Opcode.IGET_BOOLEAN, location = MatchAfterImmediately()),
+        opcode(Opcode.IF_EQZ, location = MatchAfterImmediately()),
+        opcode(Opcode.INVOKE_VIRTUAL, location = MatchAfterImmediately()),
+        opcode(Opcode.INT_TO_FLOAT, location = MatchAfterWithin(1)),
+        opcode(Opcode.INT_TO_FLOAT, location = MatchAfterImmediately()),
+        opcode(Opcode.INVOKE_VIRTUAL, location = MatchAfterImmediately()),
+        opcode(Opcode.MOVE_RESULT, location = MatchAfterImmediately()),
+        opcode(Opcode.IF_EQZ, location = MatchAfterImmediately()),
+        opcode(Opcode.INVOKE_VIRTUAL, location = MatchAfterImmediately()),
+        opcode(Opcode.INVOKE_VIRTUAL, location = MatchAfterImmediately()), // oMethodReference
     )
 )
 
@@ -124,11 +123,12 @@ internal object SlideToSeekFingerprint : Fingerprint(
     returnType = "V",
     parameters = listOf("Landroid/view/View;", "F"),
     filters = listOf(
-        opcode(Opcode.INVOKE_VIRTUAL),
+        methodCall(
+            returnType = "Z",
+            parameters = listOf(),
+            location = MatchAfterWithin(10) // Match close to start of method.
+        ),
         opcode(Opcode.MOVE_RESULT, location = MatchAfterImmediately()),
-        opcode(Opcode.IF_EQZ, location = MatchAfterImmediately()),
-        opcode(Opcode.GOTO_16, location = MatchAfterImmediately()),
-
         literal(67108864)
     )
 )
@@ -142,6 +142,12 @@ internal object FullscreenLargeSeekbarFeatureFlagFingerprint : Fingerprint(
 internal object ShortsDisableSeekbarThumbnailsFeatureFlagFingerprint : Fingerprint(
     filters = listOf(
         literal(45787901)
+    )
+)
+
+internal object ShortsSeekbarDetachFeatureFlagFingerprint : Fingerprint(
+    filters = listOf(
+        literal(45421233)
     )
 )
 
@@ -205,13 +211,18 @@ internal object SeekbarUpdatePointFingerprint : Fingerprint (
     )
 )
 
+/**
+ * Constructor of the touch handler of slide to seek (press and hold the player, then slide).
+ */
+internal object SlideSeekbarHandlerConstructorFingerprint : Fingerprint (
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.CONSTRUCTOR),
+    filters = listOf(
+        resourceLiteral(ResourceType.DIMEN, "seek_easy_horizontal_touch_offset_to_start_scrubbing")
+    )
+)
+
 internal object SlideSeekbarHandlerOnTouchFingerprint : Fingerprint (
-    classFingerprint = Fingerprint (
-        accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.CONSTRUCTOR),
-        filters = listOf(
-            resourceLiteral(ResourceType.DIMEN, "seek_easy_horizontal_touch_offset_to_start_scrubbing")
-        )
-    ),
+    classFingerprint = SlideSeekbarHandlerConstructorFingerprint,
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "Z",
     parameters = listOf("Landroid/view/View;", "Landroid/view/MotionEvent;")
@@ -240,14 +251,28 @@ internal object SlideSeekbarGetViewControllerFingerprint : Fingerprint (
     )
 )
 
+/**
+ * Where a storyboard frame is cut from its storyboard image: the frame rectangle, then the region decode.
+ */
+internal object StoryboardFrameRegionFingerprint : Fingerprint (
+    returnType = "Landroid/graphics/Bitmap;",
+    parameters = listOf("L", "I", "Landroid/graphics/Bitmap;"),
+    filters = listOf(
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            parameters = listOf("I"),
+            returnType = "Landroid/graphics/Rect;"
+        ),
+        opcode(opcode = Opcode.MOVE_RESULT_OBJECT, location = MatchAfterImmediately()),
+        methodCall(
+            smali = $$"Landroid/graphics/BitmapRegionDecoder;->decodeRegion(Landroid/graphics/Rect;Landroid/graphics/BitmapFactory$Options;)Landroid/graphics/Bitmap;"
+        ),
+        string("Storyboard regionDecoder.decodeRegion exception - ")
+    )
+)
+
 internal object SeekbarFineScrubbingBitmapFingerprint : Fingerprint (
-    classFingerprint = Fingerprint (
-        returnType = "Landroid/graphics/Bitmap;",
-        parameters = listOf("L", "I", "Landroid/graphics/Bitmap;"),
-        filters = listOf(
-            string("Storyboard regionDecoder.decodeRegion exception - ")
-        )
-    ),
+    classFingerprint = StoryboardFrameRegionFingerprint,
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL, AccessFlags.DECLARED_SYNCHRONIZED),
     returnType = "V",
     parameters = listOf("Landroid/graphics/Bitmap;")
@@ -267,27 +292,35 @@ internal object SeekbarBigBoardsUpdateFingerprint : Fingerprint (
     parameters = listOf(),
     filters = listOf(
         literal(1),
-        opcode(opcode = Opcode.IF_NEZ, location = MatchAfterImmediately()),
-        opcode(opcode = Opcode.RETURN, location = MatchAfterImmediately())
+        opcode(opcode = Opcode.SGET_OBJECT),
+        opcode(opcode = Opcode.IF_EQ, location = MatchAfterImmediately()),
+        opcode(opcode = Opcode.SGET_OBJECT, location = MatchAfterImmediately()),
+        opcode(opcode = Opcode.IF_EQ, location = MatchAfterImmediately()),
+        opcode(opcode = Opcode.SGET_OBJECT, location = MatchAfterImmediately())
+    )
+)
+
+/**
+ * Where the full screen seek preview (big boards) sets the scale of its image: center crop or fit center.
+ */
+internal object SeekbarBigBoardsScaleTypeFingerprint : Fingerprint (
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "V",
+    parameters = listOf("Z"),
+    filters = listOf(
+        fieldAccess(
+            opcode = Opcode.SGET_OBJECT,
+            smali = $$"Landroid/widget/ImageView$ScaleType;->CENTER_CROP:Landroid/widget/ImageView$ScaleType;"
+        ),
+        fieldAccess(
+            opcode = Opcode.SGET_OBJECT,
+            smali = $$"Landroid/widget/ImageView$ScaleType;->FIT_CENTER:Landroid/widget/ImageView$ScaleType;"
+        )
     )
 )
 
 internal object SeekbarBigBoardsUpdateLegacyFingerprint : Fingerprint (
-    classFingerprint = Fingerprint(
-        accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
-        returnType = "V",
-        parameters = listOf("Z"),
-        filters = listOf(
-            fieldAccess(
-                opcode = Opcode.SGET_OBJECT,
-                smali = $$"Landroid/widget/ImageView$ScaleType;->CENTER_CROP:Landroid/widget/ImageView$ScaleType;"
-            ),
-            fieldAccess(
-                opcode = Opcode.SGET_OBJECT,
-                smali = $$"Landroid/widget/ImageView$ScaleType;->FIT_CENTER:Landroid/widget/ImageView$ScaleType;"
-            )
-        )
-    ),
+    classFingerprint = SeekbarBigBoardsScaleTypeFingerprint,
     accessFlags = listOf(AccessFlags.PRIVATE, AccessFlags.FINAL),
     returnType = "Z",
     parameters = listOf(),
@@ -295,6 +328,24 @@ internal object SeekbarBigBoardsUpdateLegacyFingerprint : Fingerprint (
         literal(1),
         opcode(opcode = Opcode.IF_NEZ, location = MatchAfterImmediately()),
         opcode(opcode = Opcode.RETURN, location = MatchAfterImmediately())
+    )
+)
+
+/**
+ * Where the full screen seek preview handles a scrub start (1), move (2) or end (3, 4).
+ * A scrub start shows the preview, then seeks it, and that is the last call of the seek method.
+ */
+internal object SeekbarBigBoardsScrubFingerprint : Fingerprint (
+    classFingerprint = SeekbarBigBoardsScaleTypeFingerprint,
+    returnType = "V",
+    parameters = listOf("I", "J"),
+    filters = listOf(
+        methodCall(
+            opcode = Opcode.INVOKE_DIRECT,
+            definingClass = "this",
+            parameters = listOf("J"),
+            returnType = "V"
+        )
     )
 )
 

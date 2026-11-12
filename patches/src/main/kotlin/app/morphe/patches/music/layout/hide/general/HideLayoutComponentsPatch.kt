@@ -9,7 +9,7 @@ package app.morphe.patches.music.layout.hide.general
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
-import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.patch
 import app.morphe.patches.music.misc.extension.sharedExtensionPatch
 import app.morphe.patches.music.misc.litho.filter.lithoFilterPatch
 import app.morphe.patches.music.misc.settings.PreferenceScreen
@@ -22,7 +22,7 @@ import app.morphe.patches.shared.misc.settings.preference.PreferenceScreenPrefer
 import app.morphe.patches.shared.misc.settings.preference.PreferenceScreenPreference.Sorting
 import app.morphe.patches.shared.misc.settings.preference.SwitchPreference
 import app.morphe.patches.shared.misc.settings.preference.TextPreference
-import app.morphe.util.injectHideViewCall
+import app.morphe.patches.youtube.ad.injectHideViewCall
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 
 private const val COMMENTS_FILTER =
@@ -33,7 +33,7 @@ private const val LAYOUT_COMPONENTS_FILTER =
     "Lapp/morphe/extension/music/patches/components/LayoutComponentsFilter;"
 
 @Suppress("unused")
-val hideLayoutComponentsPatch = bytecodePatch(
+val hideLayoutComponentsPatch = patch(
     name = "Hide layout components",
     description = "Adds options to hide general layout components."
 ) {
@@ -47,8 +47,10 @@ val hideLayoutComponentsPatch = bytecodePatch(
 
     execute {
         PreferenceScreen.FEED.addPreferences(
+            SwitchPreference("morphe_music_hide_podcast_episode_download_button", summary = true),
             SwitchPreference("morphe_music_hide_explore_shelf"),
             SwitchPreference("morphe_music_hide_grid_shelves"),
+            SwitchPreference("morphe_music_hide_filter_bar"),
             SwitchPreference("morphe_music_hide_horizontal_shelves"),
             SwitchPreference("morphe_music_hide_list_shelves"),
             SwitchPreference("morphe_music_hide_new_from_shelf"),
@@ -69,7 +71,7 @@ val hideLayoutComponentsPatch = bytecodePatch(
                     ),
                     TextPreference(
                         key = "morphe_music_custom_filter_strings",
-                        titleKey = "morphe_custom_filter_strings_title",
+                        titleKey = "morphe_custom_filter_screen_title",
                         summaryKey = "morphe_custom_filter_strings_summary",
                         inputType = InputType.TEXT_MULTI_LINE
                     )
@@ -87,6 +89,8 @@ val hideLayoutComponentsPatch = bytecodePatch(
                     SwitchPreference("morphe_music_hide_comments_community_guidelines"),
                     SwitchPreference("morphe_music_hide_comments_context"),
                     SwitchPreference("morphe_music_hide_comments_emoji_button"),
+                    SwitchPreference("morphe_music_hide_comments_gif_button"),
+                    SwitchPreference("morphe_music_hide_comments_gifs_and_images", summary = true),
                     SwitchPreference("morphe_music_hide_comments_info_button"),
                     SwitchPreference("morphe_music_hide_comments_timestamp_button")
                 )
@@ -113,6 +117,18 @@ val hideLayoutComponentsPatch = bytecodePatch(
                 match.instructionMatches.last().index,
                 LAYOUT_COMPONENTS_FILTER,
                 "hideAudioVideoToggle"
+            )
+        }
+        // endregion
+
+        // region hide filter bar
+        ChipCloudFingerprint.method.apply {
+            val targetIndex = ChipCloudFingerprint.instructionMatches.last().index
+            val targetRegister = getInstruction<OneRegisterInstruction>(targetIndex).registerA
+
+            addInstruction(
+                targetIndex + 1,
+                "invoke-static { v$targetRegister }, $LAYOUT_COMPONENTS_FILTER->hideFilterBar(Landroid/view/View;)V"
             )
         }
         // endregion

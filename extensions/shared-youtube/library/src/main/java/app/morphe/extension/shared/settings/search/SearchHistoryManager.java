@@ -177,7 +177,7 @@ public class SearchHistoryManager {
         }
 
         // Show the search history container.
-        showSearchHistoryContainer();
+        searchHistoryContainer.setVisibility(View.VISIBLE);
     }
 
     /**
@@ -207,14 +207,6 @@ public class SearchHistoryManager {
     }
 
     /**
-     * Removes a search query from the history.
-     */
-    public void removeSearchQuery(String query) {
-        searchHistory.remove(query);
-        saveSearchHistory();
-    }
-
-    /**
      * Clears all search history.
      */
     public void clearAllSearchHistory() {
@@ -232,12 +224,6 @@ public class SearchHistoryManager {
         return showSettingsSearchHistory;
     }
 
-    /**
-     * Shows the search history container and overlay.
-     */
-    public void showSearchHistoryContainer() {
-        searchHistoryContainer.setVisibility(View.VISIBLE);
-    }
 
     /**
      * Hides the search history container.
@@ -349,6 +335,7 @@ public class SearchHistoryManager {
 
                 // Set click listener for delete icon.
                 ImageView deleteIcon = view.findViewById(ID_DELETE_ICON);
+                deleteIcon.setContentDescription(str("morphe_settings_search_remove"));
 
                 deleteIcon.setImageResource(Utils.appIsUsingBoldIcons()
                                 ? ID_SEARCH_REMOVE_ICON_BOLD
@@ -359,7 +346,8 @@ public class SearchHistoryManager {
                         query,
                         str("morphe_settings_search_remove_message"),
                         () -> {
-                            removeSearchQuery(query);
+                            searchHistory.remove(query);
+                            saveSearchHistory();
                             remove(query);
                             notifyDataSetChanged();
                         }

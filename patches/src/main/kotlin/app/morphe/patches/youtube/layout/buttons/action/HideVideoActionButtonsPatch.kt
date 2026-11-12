@@ -10,12 +10,10 @@
 
 package app.morphe.patches.youtube.layout.buttons.action
 
-import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
-import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
-import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.patch
 import app.morphe.patches.shared.misc.fix.proto.fixProtoLibraryPatch
 import app.morphe.patches.shared.misc.litho.filter.addLithoFilter
-import app.morphe.patches.shared.misc.litho.node.hookTreeNodeResult
+import app.morphe.patches.shared.misc.proto.hookElement
 import app.morphe.patches.shared.misc.settings.preference.NonInteractivePreference
 import app.morphe.patches.shared.misc.settings.preference.PreferenceCategory
 import app.morphe.patches.shared.misc.settings.preference.PreferenceScreenPreference
@@ -23,13 +21,10 @@ import app.morphe.patches.shared.misc.settings.preference.SwitchPreference
 import app.morphe.patches.youtube.misc.extension.sharedExtensionPatch
 import app.morphe.patches.youtube.misc.fix.videoactionbar.restoreOldVideoActionBarPatch
 import app.morphe.patches.youtube.misc.litho.filter.lithoFilterPatch
-import app.morphe.patches.youtube.misc.litho.node.treeNodeElementHookPatch
+import app.morphe.patches.youtube.misc.proto.elementProtoParserHookPatch
 import app.morphe.patches.youtube.misc.settings.PreferenceScreen
 import app.morphe.patches.youtube.misc.settings.settingsPatch
 import app.morphe.patches.youtube.shared.Constants.COMPATIBILITY_YOUTUBE
-import app.morphe.patches.youtube.shared.WatchNextResponseParserFingerprint
-import app.morphe.patches.youtube.video.information.videoInformationPatch
-import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 
 private const val VIDEO_ACTION_FILTER =
     "Lapp/morphe/extension/youtube/patches/components/VideoActionButtonsFilter;"
@@ -37,7 +32,7 @@ private const val QUICK_ACTIONS_FILTER =
     "Lapp/morphe/extension/youtube/patches/components/QuickActionButtonsFilter;"
 
 @Suppress("unused")
-val hideVideoActionButtonsPatch = bytecodePatch(
+val hideVideoActionButtonsPatch = patch(
     name = "Hide video action buttons",
     description = "Adds options to hide video action buttons in fullscreen and portrait modes."
 ) {
@@ -45,9 +40,8 @@ val hideVideoActionButtonsPatch = bytecodePatch(
         settingsPatch,
         sharedExtensionPatch,
         lithoFilterPatch,
-        treeNodeElementHookPatch,
+        elementProtoParserHookPatch,
         fixProtoLibraryPatch,
-        videoInformationPatch,
         quickActionsMarginPatch,
         restoreOldVideoActionBarPatch
     )
@@ -65,6 +59,8 @@ val hideVideoActionButtonsPatch = bytecodePatch(
                             SwitchPreference("morphe_disable_like_subscribe_glow", summary = true),
                             SwitchPreference("morphe_hide_action_bar"),
                             SwitchPreference("morphe_hide_ask_button"),
+                            SwitchPreference("morphe_hide_channel_profile_button", summary = true),
+                            SwitchPreference("morphe_hide_channel_profile_subscribe_button", summary = true),
                             SwitchPreference("morphe_hide_clip_button", summary = true),
                             SwitchPreference("morphe_hide_comments_button"),
                             SwitchPreference("morphe_hide_connect_button"),
@@ -89,18 +85,18 @@ val hideVideoActionButtonsPatch = bytecodePatch(
                                 key = "morphe_quick_actions_top_margin",
                                 tag = "app.morphe.extension.shared.settings.preference.SeekBarPreference"
                             ),
-                            SwitchPreference("morphe_hide_quick_actions"),
-                            SwitchPreference("morphe_hide_quick_actions_ask_button"),
-                            SwitchPreference("morphe_hide_quick_actions_comments_button"),
+                            SwitchPreference("morphe_hide_quick_actions", titleKey = "morphe_hide_action_bar_title"),
+                            SwitchPreference("morphe_hide_quick_actions_ask_button", titleKey = "morphe_hide_ask_button_title"),
+                            SwitchPreference("morphe_hide_quick_actions_comments_button", titleKey = "morphe_hide_comments_button_title"),
                             SwitchPreference("morphe_hide_quick_actions_dislike_button"),
                             SwitchPreference("morphe_hide_quick_actions_like_button"),
                             SwitchPreference("morphe_hide_quick_actions_live_chat_button"),
                             SwitchPreference("morphe_hide_quick_actions_mix_button"),
-                            SwitchPreference("morphe_hide_quick_actions_more_button"),
+                            SwitchPreference("morphe_hide_quick_actions_more_button", titleKey = "morphe_hide_more_button_title"),
                             SwitchPreference("morphe_hide_quick_actions_more_videos_button"),
                             SwitchPreference("morphe_hide_quick_actions_playlist_button"),
-                            SwitchPreference("morphe_hide_quick_actions_save_button"),
-                            SwitchPreference("morphe_hide_quick_actions_share_button")
+                            SwitchPreference("morphe_hide_quick_actions_save_button", titleKey = "morphe_hide_save_button_title"),
+                            SwitchPreference("morphe_hide_quick_actions_share_button", titleKey = "morphe_hide_share_button_title")
                         )
                     )
                 )
@@ -110,20 +106,7 @@ val hideVideoActionButtonsPatch = bytecodePatch(
         addLithoFilter(VIDEO_ACTION_FILTER)
         addLithoFilter(QUICK_ACTIONS_FILTER)
 
-        hookTreeNodeResult("$VIDEO_ACTION_FILTER->onLazilyConvertedElementLoaded")
-
-        WatchNextResponseParserFingerprint.let {
-            it.clearMatch() // Fingerprint is shared and indexes may no longer be correct.
-            it.method.apply {
-                val index = it.instructionMatches[5].index
-                val register = getInstruction<OneRegisterInstruction>(index).registerA
-
-                addInstruction(
-                    index + 1,
-                    "invoke-static { v$register }, $VIDEO_ACTION_FILTER->" +
-                            "onSingleColumnWatchNextResultsLoaded(Lcom/google/protobuf/MessageLite;)V"
-                )
-            }
-        }
+        // The hidden buttons are removed from the element of the action bar, for every layout of the action bar.
+        hookElement("$VIDEO_ACTION_FILTER->hideActionButtons")
     }
 }

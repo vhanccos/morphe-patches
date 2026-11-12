@@ -11,10 +11,6 @@ import static app.morphe.extension.shared.StringRef.str;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.content.Intent;
-import android.graphics.drawable.ShapeDrawable;
-import android.graphics.drawable.shapes.RoundRectShape;
-import android.net.Uri;
 import android.preference.Preference;
 import android.util.AttributeSet;
 import android.util.Pair;
@@ -98,7 +94,7 @@ public class ListenBrainzTokenPreference extends Preference {
         instructionParams.bottomMargin = Dim.dp12;
         content.addView(instruction, instructionParams);
 
-        EditText tokenInput = createThemedEditText(context);
+        EditText tokenInput = ThemedInput.create(context);
         tokenInput.setHint(str("morphe_music_listenbrainz_token_dialog_hint"));
         if (loggedIn) {
             String currentToken = Settings.LISTENBRAINZ_USER_TOKEN.get();
@@ -136,7 +132,9 @@ public class ListenBrainzTokenPreference extends Preference {
                                 if (!validation.valid) {
                                     Utils.showToastLong(str("morphe_music_listenbrainz_token_toast_invalid_warning"));
                                 }
-                            } catch (Exception ignored) {}
+                            } catch (Exception ex) {
+                                Logger.printDebug(() -> "ListenBrainz validateToken failure", ex);
+                            }
                         });
                     }
                 },
@@ -154,16 +152,9 @@ public class ListenBrainzTokenPreference extends Preference {
         LinearLayout mainLayout = dialogPair.second;
 
         Button getBtn = CustomDialog.createButton(context, null,
-                str("morphe_music_listenbrainz_token_dialog_get_token"),
-                () -> {
-                    try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://listenbrainz.org/profile/"));
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        context.startActivity(intent);
-                    } catch (Exception ex) {
-                        Logger.printException(() -> "ListenBrainzTokenPreference failed to open browser", ex);
-                    }
-                },
+                str("morphe_music_token_dialog_get_token"),
+                () -> ThemedInput.openInBrowser(context,
+                        "https://listenbrainz.org/profile/", "ListenBrainz token button"),
                 false, false);
 
         Button verifyBtn = CustomDialog.createButton(context, null,
@@ -235,19 +226,5 @@ public class ListenBrainzTokenPreference extends Preference {
         status.setText(text);
         status.setTextColor(color);
         status.setVisibility(View.VISIBLE);
-    }
-
-    private static EditText createThemedEditText(Context context) {
-        EditText editText = new EditText(context);
-        editText.setSingleLine(true);
-        editText.setTextSize(16);
-        editText.setTextColor(ThemeUtils.getAppForegroundColor());
-        ShapeDrawable background = new ShapeDrawable(new RoundRectShape(
-                Dim.roundedCorners(10), null, null));
-        background.getPaint().setColor(ThemeUtils.getEditTextBackground());
-        editText.setPadding(Dim.dp12, Dim.dp8, Dim.dp12, Dim.dp8);
-        editText.setBackground(background);
-        editText.setClipToOutline(true);
-        return editText;
     }
 }

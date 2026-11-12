@@ -1,7 +1,29 @@
+/*
+ * Copyright 2025 Morphe.
+ * https://github.com/MorpheApp/morphe-patches
+ *
+ * File-Specific License Notice (GPLv3 Section 7 Terms)
+ *
+ * This file is part of the Morphe project and is licensed under
+ * the GNU General Public License version 3 (GPLv3), with the Additional
+ * Terms under Section 7 described in the LICENSE file.
+ *
+ * https://www.gnu.org/licenses/gpl-3.0.html
+ *
+ * Section 7b: Notice Preservation
+ * -------------------------------
+ * This entire comment block must be preserved in all copies,
+ * distributions, and derivative works of this file, in both
+ * original and modified source forms.
+ *
+ * Portions of this software are provided "AS IS" by the Morphe software project.
+ * Any express or implied warranties, including the implied warranties of
+ * merchantability and fitness for a particular purpose, are disclaimed.
+ */
+
 package app.morphe.patches.util.resource
 
-import org.w3c.dom.Document
-import org.w3c.dom.Node
+import app.morphe.patcher.xml.XmlElement
 import java.util.logging.Logger
 
 /**
@@ -15,9 +37,9 @@ class StringResource(
     name: String,
     val value: String
 ) : BaseResource(name, "string") {
-    override fun serialize(ownerDocument: Document, resourceCallback: (BaseResource) -> Unit) =
-        super.serialize(ownerDocument, resourceCallback).apply {
-            textContent = StringResourceSanitizer.sanitizeAndroidResourceString(name, value)
+    override fun serialize(parent: XmlElement, resourceCallback: (BaseResource) -> Unit) =
+        super.serialize(parent, resourceCallback).apply {
+            text = StringResourceSanitizer.sanitizeAndroidResourceString(name, value)
         }
 
     override fun toString(): String {
@@ -26,15 +48,13 @@ class StringResource(
 
     companion object {
         @Suppress("unused")
-        fun fromNode(node: Node): StringResource {
-            val name = node.attributes.getNamedItem("name").textContent
-            val value = node.textContent
-            return StringResource(name, value)
-        }
+        fun fromElement(element: XmlElement) = StringResource(element.attribute("name")!!, element.text)
     }
 }
 
 object StringResourceSanitizer {
+    private val logger = Logger.getLogger(StringResourceSanitizer::class.java.name)
+
     // Matches unescaped double quotes.
     private val UNESCAPED_DOUBLE_QUOTE = Regex("(?<!\\\\)\"")
 
@@ -54,7 +74,6 @@ object StringResourceSanitizer {
         filePath: String? = null,
         throwException: Boolean = false
     ): String {
-        val logger = Logger.getLogger(StringResourceSanitizer::class.java.name)
         var sanitized = value
 
         // Could check for other invalid strings, but for now just check quotes.
@@ -74,7 +93,8 @@ object StringResourceSanitizer {
                 logger.warning(message)
             }
 
-            if (UNESCAPED_QUOTE.containsMatchIn(value)) {
+            // Most strings have no quotes, and checking for them first is much faster than the regex.
+            if ((value.contains('\'') || value.contains('"')) && UNESCAPED_QUOTE.containsMatchIn(value)) {
                 val message = "$filePath String $key contains unescaped quotes: $value"
                 if (throwException) throw IllegalArgumentException(message)
                 logger.warning(message)

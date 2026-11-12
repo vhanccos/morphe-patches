@@ -35,7 +35,7 @@ import app.morphe.extension.shared.ResourceType;
 import app.morphe.extension.shared.ResourceUtils;
 import app.morphe.extension.shared.Utils;
 import app.morphe.extension.shared.settings.preference.ColorPickerPreference;
-import app.morphe.extension.shared.settings.preference.CustomDialogListPreference;
+import app.morphe.extension.shared.settings.preference.NewIndicatorSpan;
 import app.morphe.extension.shared.settings.preference.URLLinkPreference;
 import app.morphe.extension.shared.theme.ThemeUtils;
 
@@ -61,7 +61,7 @@ public abstract class BaseSearchResultItem {
                 case SWITCH ->              getResourceIdentifier("morphe_preference_search_result_switch");
                 case LIST   ->              getResourceIdentifier("morphe_preference_search_result_list");
                 case COLOR_PICKER ->        getResourceIdentifier("morphe_preference_search_result_color");
-                case GROUP_HEADER ->        getResourceIdentifier("morphe_preference_search_result_group_header");
+                case GROUP_HEADER ->        throw new IllegalStateException("Created in code");
                 case NO_RESULTS   ->        getResourceIdentifier("morphe_preference_search_no_result");
             };
         }
@@ -168,7 +168,7 @@ public abstract class BaseSearchResultItem {
                         : key;
             }
             appendText(searchBuilder, normalizedKey);
-            appendText(searchBuilder, pref.getTitle());
+            appendText(searchBuilder, NewIndicatorSpan.removeFrom(pref.getTitle()));
             appendText(searchBuilder, pref.getSummary());
 
             // Add type-specific searchable content.
@@ -202,7 +202,7 @@ public abstract class BaseSearchResultItem {
         }
 
         /**
-         * Matching is case insensitive and ignores punctuation.
+         * Matching is case-insensitive and ignores punctuation.
          */
         @Override
         boolean matchesQuery(String query) {
@@ -224,12 +224,6 @@ public abstract class BaseSearchResultItem {
          * preference renders on its own screen.
          */
         private CharSequence getLiveSummary() {
-            if (preference instanceof CustomDialogListPreference customPref) {
-                String staticSum = customPref.getStaticSummary();
-                if (staticSum != null) {
-                    return staticSum;
-                }
-            }
             if (preference instanceof ListPreference listPref) {
                 String value = listPref.getValue();
                 CharSequence[] entries = listPref.getEntries();

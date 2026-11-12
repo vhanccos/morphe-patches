@@ -154,10 +154,11 @@ public final class MusicSponsorBlockConfig implements Configuration {
         @Override public @NonNull BooleanSetting toastOnConnectionError()       { return Settings.SB_TOAST_ON_CONNECTION_ERROR; }
         @Override public @NonNull StringSetting  apiUrl()                       { return Settings.SB_API_URL; }
         @Override public @Nullable BooleanSetting videoLengthWithoutSegments()  { return null; }
+        @Override public @Nullable BooleanSetting offlineSegments()             { return null; }
         @Override public @Nullable BooleanSetting toastOnWhitelistedChannel()   { return null; }
         @Override public @Nullable BooleanSetting autoHideSkipButton()          { return null; }
         @Override public @Nullable BooleanSetting userIsVip()                   { return null; }
-        @Override public @Nullable StringSetting  privateUserId()               { return null; }
+        @Override public @Nullable StringSetting  privateUserId()               { return Settings.SB_PRIVATE_USER_ID; }
         @Override public @Nullable FloatSetting   segmentMinDurationSeconds()   { return null; }
         @Override public @Nullable LongSetting    lastVipCheck()                { return null; }
         @Override public @Nullable BooleanSetting trackSkipCount()              { return null; }

@@ -15,11 +15,17 @@ import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.literal
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.opcode
+import app.morphe.patcher.resource.ResourceType
+import app.morphe.patcher.resourceLiteral
 import app.morphe.patcher.string
-import app.morphe.patches.all.misc.resources.ResourceType
-import app.morphe.patches.all.misc.resources.resourceLiteral
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
+
+internal const val WATCH_WHILE_LAYOUT_CLASS =
+    "Lcom/google/android/apps/youtube/music/watchpage/ui/WatchWhileLayout;"
+
+private const val PLAYER_PAGE_BEHAVIOR_CLASS =
+    "Lcom/google/android/apps/youtube/music/watchpage/ui/PlayerPageBehavior;"
 
 /**
  * Matches the miniplayer constructor.
@@ -50,6 +56,13 @@ internal object NavigationBarTabLayoutFingerprint : Fingerprint(
         resourceLiteral(ResourceType.COLOR, "ytm_color_grey_12"),
         methodCall(name = "setBackgroundColor")
     )
+)
+
+internal object SwitchToggleColorParentFingerprint : Fingerprint(
+    classFingerprint = MiniPlayerConstructorFingerprint,
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "V",
+    parameters = listOf("L", "J")
 )
 
 internal object SwitchToggleColorFingerprint : Fingerprint(
@@ -102,7 +115,7 @@ internal object MinimizedPlayerFingerprint : Fingerprint(
  *   >= 9.x: WatchWhileLayout
  */
 internal object MppWatchWhileLayoutFingerprint : Fingerprint(
-    definingClass = "WatchWhileLayout;",
+    definingClass = WATCH_WHILE_LAYOUT_CLASS,
     returnType = "V",
     parameters = listOf(),
     filters = listOf(
@@ -190,10 +203,10 @@ internal object MiniPlayerDefaultTextFingerprint : Fingerprint(
 )
 
 /**
- * 9.02+
+ * 9.02 - 9.42
  */
 internal object PlayerPageBehaviorFingerprint : Fingerprint(
-    definingClass = "Lcom/google/android/apps/youtube/music/watchpage/ui/PlayerPageBehavior;",
+    definingClass = PLAYER_PAGE_BEHAVIOR_CLASS,
     accessFlags = listOf(AccessFlags.FINAL),
     parameters = listOf(),
     returnType = "V",
@@ -205,6 +218,41 @@ internal object PlayerPageBehaviorFingerprint : Fingerprint(
 )
 
 /**
+ * 9.43+
+ * The first instruction match reads the player page motion field.
+ */
+internal object PlayerPageBehaviorInterceptTouchEventFingerprint : Fingerprint(
+    definingClass = PLAYER_PAGE_BEHAVIOR_CLASS,
+    name = "onInterceptTouchEvent",
+    filters = listOf(
+        fieldAccess(
+            opcode = Opcode.IGET_BOOLEAN,
+            definingClass = "this"
+        ),
+        opcode(Opcode.IF_EQZ, location = MatchAfterImmediately()),
+        fieldAccess(
+            opcode = Opcode.IGET_OBJECT,
+            definingClass = "this",
+            location = MatchAfterImmediately()
+        ),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            parameters = listOf("Landroid/view/MotionEvent;"),
+            returnType = "V",
+            location = MatchAfterImmediately()
+        )
+    )
+)
+
+/**
+ * 9.43+
+ */
+internal object PlayerPageBehaviorTouchEventFingerprint : Fingerprint(
+    definingClass = PLAYER_PAGE_BEHAVIOR_CLASS,
+    name = "onTouchEvent"
+)
+
+/**
  * Matches the watch-while layout's onFinishInflate() method.
  * definingClass uses a contains match, covering class renames across builds:
  *   <= 8.x: MppWatchWhileLayout
@@ -212,7 +260,6 @@ internal object PlayerPageBehaviorFingerprint : Fingerprint(
  */
 internal object WatchWhileLayoutFingerprint : Fingerprint(
     definingClass = "WatchWhileLayout;",
-    name = "onFinishInflate",
     returnType = "V",
     filters = listOf(
         // <= 8.x: MppPlayerPageBehavior

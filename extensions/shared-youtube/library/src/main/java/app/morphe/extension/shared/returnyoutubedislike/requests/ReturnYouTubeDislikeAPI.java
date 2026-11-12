@@ -1,3 +1,13 @@
+/*
+ * Copyright 2026 Morphe.
+ * https://github.com/MorpheApp/morphe-patches/pull/2524
+ *
+ * Original hard forked code:
+ * https://github.com/ReVanced/revanced-patches/commit/724e6d61b2ecd868c1a9a37d465a688e83a74799
+ *
+ * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ */
+
 package app.morphe.extension.shared.returnyoutubedislike.requests;
 
 import static app.morphe.extension.shared.StringRef.str;
@@ -47,11 +57,6 @@ public class ReturnYouTubeDislikeAPI {
      * so this can be a larger value.
      */
     private static final int API_REGISTER_VOTE_TIMEOUT_MILLISECONDS = 60 * 1000; // 60 Seconds.
-
-    /**
-     * Response code of a successful API call
-     */
-    private static final int HTTP_STATUS_CODE_SUCCESS = 200;
 
     /**
      * RYD API sometimes returns 401 (authorization error), even though the user ID is valid.
@@ -149,33 +154,6 @@ public class ReturnYouTubeDislikeAPI {
 
     private ReturnYouTubeDislikeAPI() {
     } // utility class
-
-    /**
-     * Simulates a slow response by doing meaningless calculations.
-     * Used to debug the app UI and verify UI timeout logic works
-     */
-    private static void randomlyWaitIfLocallyDebugging() {
-        final boolean DEBUG_RANDOMLY_DELAY_NETWORK_CALLS = false; // set true to debug UI
-
-        //noinspection ConstantValue
-        if (DEBUG_RANDOMLY_DELAY_NETWORK_CALLS) {
-            final long amountOfTimeToWaste = (long) (Math.random()
-                    * (API_GET_VOTES_TCP_TIMEOUT_MILLISECONDS + API_GET_VOTES_HTTP_TIMEOUT_MILLISECONDS));
-            Utils.doNothingForDuration(amountOfTimeToWaste);
-        }
-    }
-
-    /**
-     * Clears any backoff rate limits in effect.
-     * Should be called if RYD is turned on/off.
-     */
-    public static void resetRateLimits() {
-        if (lastApiCallFailed || timeToResumeAPICalls != 0) {
-            Logger.printDebug(() -> "Reset rate limit");
-        }
-        lastApiCallFailed = false;
-        timeToResumeAPICalls = 0;
-    }
 
     /**
      * @return True, if api rate limit is in effect.
@@ -288,7 +266,16 @@ public class ReturnYouTubeDislikeAPI {
             connection.setConnectTimeout(API_GET_VOTES_TCP_TIMEOUT_MILLISECONDS); // timeout for TCP connection to server
             connection.setReadTimeout(API_GET_VOTES_HTTP_TIMEOUT_MILLISECONDS); // timeout for server response
 
-            randomlyWaitIfLocallyDebugging();
+            // Simulates a slow response by doing meaningless calculations.
+            // Used to debug the app UI and verify UI timeout logic works
+            final boolean DEBUG_RANDOMLY_DELAY_NETWORK_CALLS = false; // set true to debug UI
+
+            //noinspection ConstantValue
+            if (DEBUG_RANDOMLY_DELAY_NETWORK_CALLS) {
+                final long amountOfTimeToWaste = (long) (Math.random()
+                        * (API_GET_VOTES_TCP_TIMEOUT_MILLISECONDS + API_GET_VOTES_HTTP_TIMEOUT_MILLISECONDS));
+                Utils.doNothingForDuration(amountOfTimeToWaste);
+            }
 
             final int responseCode = connection.getResponseCode();
             if (checkIfRateLimitWasHit(responseCode)) {
@@ -297,7 +284,7 @@ public class ReturnYouTubeDislikeAPI {
                 return null;
             }
 
-            if (responseCode == HTTP_STATUS_CODE_SUCCESS) {
+            if (responseCode == Requester.HTTP_STATUS_CODE_SUCCESS) {
                 // Do not disconnect, the same server connection will likely be used again soon.
                 JSONObject json = Requester.parseJSONObject(connection);
                 try {
@@ -351,7 +338,7 @@ public class ReturnYouTubeDislikeAPI {
                 connection.disconnect(); // disconnect, as no more connections will be made for a little while
                 return null;
             }
-            if (responseCode == HTTP_STATUS_CODE_SUCCESS) {
+            if (responseCode == Requester.HTTP_STATUS_CODE_SUCCESS) {
                 JSONObject json = Requester.parseJSONObject(connection);
                 String challenge = json.getString("challenge");
                 int difficulty = json.getInt("difficulty");
@@ -399,7 +386,7 @@ public class ReturnYouTubeDislikeAPI {
                 connection.disconnect(); // disconnect, as no more connections will be made for a little while
                 return null;
             }
-            if (responseCode == HTTP_STATUS_CODE_SUCCESS) {
+            if (responseCode == Requester.HTTP_STATUS_CODE_SUCCESS) {
                 Logger.printDebug(() -> "Registration confirmation successful");
                 return userID;
             }
@@ -473,7 +460,7 @@ public class ReturnYouTubeDislikeAPI {
                 connection.disconnect(); // disconnect, as no more connections will be made for a little while
                 return false;
             }
-            if (responseCode == HTTP_STATUS_CODE_SUCCESS) {
+            if (responseCode == Requester.HTTP_STATUS_CODE_SUCCESS) {
                 JSONObject json = Requester.parseJSONObject(connection);
                 String challenge = json.getString("challenge");
                 int difficulty = json.getInt("difficulty");
@@ -524,7 +511,7 @@ public class ReturnYouTubeDislikeAPI {
                 connection.disconnect(); // disconnect, as no more connections will be made for a little while
                 return false;
             }
-            if (responseCode == HTTP_STATUS_CODE_SUCCESS) {
+            if (responseCode == Requester.HTTP_STATUS_CODE_SUCCESS) {
                 Logger.printDebug(() -> "Vote confirm successful for video: " + videoId);
                 return true;
             }

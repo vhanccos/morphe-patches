@@ -11,6 +11,7 @@
  * https://gitlab.com/ReVanced/revanced-patches/-/commit/584b00fd87f83504b8886e4f3f674f8c3943cd91
  * https://gitlab.com/ReVanced/revanced-patches/-/commit/14a8f4fb96f5e2a4bc264a54115e0870b1a1ffa8
  * https://github.com/MorpheApp/morphe-patches/commit/f5371ca998c019609c2b5558b3408ab1fec065c8
+ * https://github.com/MorpheApp/morphe-patches/pull/2964
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  */
@@ -22,6 +23,9 @@ import android.animation.AnimatorListenerAdapter;
 import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Context;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.graphics.Typeface;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.RoundRectShape;
 import android.view.Gravity;
@@ -36,11 +40,18 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.Scroller;
+import android.widget.SeekBar;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.util.function.IntConsumer;
+
 import app.morphe.extension.shared.Utils;
+import app.morphe.extension.shared.settings.IntegerSetting;
+import app.morphe.extension.shared.settings.preference.SeekBarPreference;
+import app.morphe.extension.shared.settings.preference.SeekBarPreference.SeekBarConfig;
 import app.morphe.extension.shared.theme.ThemeUtils;
 
 /**
@@ -74,7 +85,7 @@ public class SheetBottomDialog {
         // Drag container.
         DraggableLinearLayout dragContainer = new DraggableLinearLayout(context, animationDuration);
         dragContainer.setOrientation(LinearLayout.VERTICAL);
-        dragContainer.setDialog(dialog);
+        dragContainer.dialog = dialog;
 
         // Top spacer - drag handle and tap-to-dismiss area above the sheet content.
         View spacer = new View(context);
@@ -97,8 +108,8 @@ public class SheetBottomDialog {
             Utils.setDialogWindowParameters(window, Gravity.BOTTOM, 0, 100, false);
         }
 
-        dialog.setAnimView(dragContainer);
-        dialog.setAnimationDuration(animationDuration);
+        dialog.animView = dragContainer;
+        dialog.duration = animationDuration;
 
         return dialog;
     }
@@ -147,6 +158,123 @@ public class SheetBottomDialog {
         mainLayout.addView(handleContainer);
 
         return mainLayout;
+    }
+
+    /**
+     * Share of the screen height a scrollable dialog content takes up at most.
+     */
+    public static final int DEFAULT_MAX_HEIGHT_PERCENT = 75;
+
+    /**
+     * @see #createCappedScrollView(Context, int)
+     */
+    public static ScrollView createCappedScrollView(@NonNull Context context) {
+        return createCappedScrollView(context, DEFAULT_MAX_HEIGHT_PERCENT);
+    }
+
+    /**
+     * Creates a {@link ScrollView} that never grows past a share of the screen, so that a long
+     * list still leaves the dialog usable, including in landscape.
+     *
+     * @param context          The context used to create the view.
+     * @param maxHeightPercent Share of the screen height the content may take up. Pass one only
+     *                         when this dialog has a reason to differ from the default.
+     */
+    public static ScrollView createCappedScrollView(@NonNull Context context, int maxHeightPercent) {
+        ScrollView scrollView = new ScrollView(context) {
+            @Override
+            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(
+                        Dim.pctHeight(maxHeightPercent), MeasureSpec.AT_MOST));
+            }
+        };
+        scrollView.setVerticalScrollBarEnabled(false);
+
+        return scrollView;
+    }
+
+    /**
+     * Creates a centered bold title for a sheet.
+     */
+    public static TextView createTitle(Context context, String text, int fgColor) {
+        TextView tv = new TextView(context);
+        tv.setText(text);
+        tv.setTextSize(18);
+        tv.setTypeface(Typeface.DEFAULT_BOLD);
+        tv.setTextColor(fgColor);
+        tv.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, Dim.dp8, 0, Dim.dp16);
+        tv.setLayoutParams(params);
+        return tv;
+    }
+
+    /**
+     * Creates a labeled slider for a setting with a registered {@link SeekBarConfig}.
+     *
+     * @param onChanged Called with each value the user selects. It must save the setting.
+     */
+    public static LinearLayout createSliderRow(Context context, String label, IntegerSetting setting,
+                                               int fgColor, IntConsumer onChanged) {
+        final SeekBarConfig config = SeekBarPreference.configFor(setting);
+        if (config == null) throw new IllegalStateException("No SeekBarConfig registered for " + setting.key);
+        final int initialValue = setting.get();
+
+        LinearLayout outer = new LinearLayout(context);
+        outer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams outerParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        outerParams.setMargins(0, Dim.dp16, 0, 0);
+        outer.setLayoutParams(outerParams);
+
+        TextView labelView = new TextView(context);
+        labelView.setText(label);
+        labelView.setTextColor(fgColor);
+        labelView.setTextSize(16);
+        labelView.setTypeface(Typeface.DEFAULT_BOLD);
+        outer.addView(labelView);
+
+        LinearLayout seekRow = new LinearLayout(context);
+        seekRow.setOrientation(LinearLayout.HORIZONTAL);
+        seekRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams seekRowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        seekRowParams.topMargin = Dim.dp16;
+        seekRow.setLayoutParams(seekRowParams);
+
+        SeekBar seekBar = new SeekBar(context);
+        seekBar.setMax((config.max() - config.min()) / config.step());
+        seekBar.setProgress(SeekBarPreference.valueToProgress(config, initialValue));
+        seekBar.getProgressDrawable().setColorFilter(new PorterDuffColorFilter(fgColor, PorterDuff.Mode.SRC_IN));
+        seekBar.getThumb().setColorFilter(new PorterDuffColorFilter(fgColor, PorterDuff.Mode.SRC_IN));
+        seekRow.addView(seekBar, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView valueView = new TextView(context);
+        valueView.setText(SeekBarPreference.formatLabel(initialValue, config));
+        valueView.setTextColor(fgColor);
+        valueView.setTextSize(14);
+        valueView.setMinWidth(Dim.dp40);
+        valueView.setGravity(Gravity.END);
+        seekRow.addView(valueView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        outer.addView(seekRow);
+
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    final int value = SeekBarPreference.progressToValue(config, progress);
+                    valueView.setText(SeekBarPreference.formatLabel(value, config));
+                    onChanged.accept(value);
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar) { }
+            @Override public void onStopTrackingTouch(SeekBar bar) { }
+        });
+
+        return outer;
     }
 
     /**
@@ -204,13 +332,6 @@ public class SheetBottomDialog {
         }
 
         /**
-         * Sets the {@link SlideDialog} associated with this layout for dismissal.
-         */
-        public void setDialog(@NonNull SlideDialog dialog) {
-            this.dialog = dialog;
-        }
-
-        /**
          * Updates the dismissal threshold when the layout's size changes.
          */
         @Override
@@ -240,10 +361,13 @@ public class SheetBottomDialog {
 
                 case MotionEvent.ACTION_MOVE:
                     float dy = ev.getRawY() - initialTouchRawY;
-                    if (dy > ViewConfiguration.get(getContext()).getScaledTouchSlop()
-                            && !canChildScrollUp()) {
-                        isDragging = true;
-                        return true; // Intercept touches for drag.
+                    if (dy > ViewConfiguration.get(getContext()).getScaledTouchSlop()) {
+                        // No drag while a child can still scroll upward.
+                        View target = findScrollableChild(this);
+                        if (target == null || !target.canScrollVertically(-1)) {
+                            isDragging = true;
+                            return true; // Intercept touches for drag.
+                        }
                     }
                     break;
             }
@@ -274,34 +398,17 @@ public class SheetBottomDialog {
                     velocityTracker.computeCurrentVelocity(1000);
                     float velocityY = velocityTracker.getYVelocity();
 
-                    if (dragOffset > dismissThreshold || velocityY > MIN_FLING_VELOCITY) {
-                        startDismissAnimation();
-                    } else {
-                        startReturnAnimation();
-                    }
+                    // Slide the dialog downward to dismiss it, or back to its original position.
+                    scroller.startScroll(0, (int) dragOffset, 0,
+                            (dragOffset > dismissThreshold || velocityY > MIN_FLING_VELOCITY
+                                    ? getHeight() : 0) - (int) dragOffset,
+                            animationDuration);
+                    post(settleRunnable);
                     isDragging = false;
                     return true;
             }
             // Consume the touch event to prevent focus changes on child views.
             return true;
-        }
-
-        /**
-         * Starts an animation to dismiss the dialog by sliding it downward.
-         */
-        private void startDismissAnimation() {
-            scroller.startScroll(0, (int) dragOffset,
-                    0, getHeight() - (int) dragOffset, animationDuration);
-            post(settleRunnable);
-        }
-
-        /**
-         * Starts an animation to return the dialog to its original position.
-         */
-        private void startReturnAnimation() {
-            scroller.startScroll(0, (int) dragOffset,
-                    0, -(int) dragOffset, animationDuration);
-            post(settleRunnable);
         }
 
         /**
@@ -322,16 +429,6 @@ public class SheetBottomDialog {
             } else {
                 dragOffset = getTranslationY();
             }
-        }
-
-        /**
-         * Checks if any child view can scroll upward, preventing drag if scrolling is possible.
-         *
-         * @return True if a child can scroll upward, false otherwise.
-         */
-        private boolean canChildScrollUp() {
-            View target = findScrollableChild(this);
-            return target != null && target.canScrollVertically(-1);
         }
 
         /**
@@ -373,20 +470,6 @@ public class SheetBottomDialog {
         }
 
         /**
-         * Sets the view to animate during show and dismiss operations.
-         */
-        public void setAnimView(@NonNull View view) {
-            this.animView = view;
-        }
-
-        /**
-         * Sets the duration of the slide-in and slide-out animations.
-         */
-        public void setAnimationDuration(int duration) {
-            this.duration = duration;
-        }
-
-        /**
          * Displays the dialog with a slide-up animation for the animated view.
          */
         @Override
@@ -407,6 +490,17 @@ public class SheetBottomDialog {
         @Override
         public void cancel() {
             super.cancel();
+        }
+
+        /**
+         * Dismisses the dialog at once, without the slide animation.
+         */
+        public void dismissImmediately() {
+            if (animView != null) {
+                animView.animate().cancel();
+            }
+            isDismissing = false;
+            super.dismiss();
         }
 
         /**

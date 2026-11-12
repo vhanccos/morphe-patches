@@ -11,13 +11,17 @@ import static app.morphe.extension.shared.StringRef.str;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.graphics.drawable.Drawable;
 import android.util.Pair;
 import android.widget.LinearLayout;
 
 import app.morphe.extension.shared.Logger;
+import app.morphe.extension.shared.ResourceUtils;
 import app.morphe.extension.shared.Utils;
 import app.morphe.extension.shared.settings.preference.BulletPointPreference;
+import app.morphe.extension.shared.spoof.SpoofAppVersionPatch;
 import app.morphe.extension.shared.ui.CustomDialog;
+import app.morphe.extension.youtube.patches.VersionCheckPatch;
 import app.morphe.extension.youtube.patches.components.AiSListFilter;
 import app.morphe.extension.youtube.patches.utils.requests.AiSListRequester;
 import app.morphe.extension.youtube.patches.utils.requests.AiSListSubmitRequest;
@@ -28,7 +32,39 @@ import app.morphe.extension.youtube.settings.Settings;
  */
 public final class AiSListSubmitDialog {
 
+    private static final boolean USE_EXPERIMENTAL_ICONS = VersionCheckPatch.IS_20_31_OR_GREATER
+            && !SpoofAppVersionPatch.isSpoofingToLessThan("20.31.00");
+
+    private static final Drawable aiSListSubmitDrawable = ResourceUtils.getDrawable(
+            USE_EXPERIMENTAL_ICONS
+                    ? "yt_outline_experimental_flag_vd_theme_24"
+                    : "yt_outline_flag_black_24"
+    );
+
+    private static final String aiSListSubmitButtonName = str("morphe_aislist_submit_title");
+
     private AiSListSubmitDialog() {
+    }
+
+    public static boolean isPatchIncluded() {
+        return false; // Modified during patching.
+    }
+
+    public static int addFlyoutButton(Object flyoutPanel, int index, String videoId) {
+        if (!isPatchIncluded() || !Settings.AISLIST_SUBMIT_FLYOUT_MENU.get() || videoId.isEmpty()) {
+            return index;
+        }
+
+        return FlyoutUtils.addFlyoutButton(
+                flyoutPanel,
+                aiSListSubmitDrawable,
+                aiSListSubmitButtonName,
+                v -> {
+                    show(videoId);
+                    FlyoutUtils.dismissFlyout();
+                },
+                index
+        );
     }
 
     /**
@@ -40,16 +76,16 @@ public final class AiSListSubmitDialog {
             if (username.isEmpty()) {
                 // The name appears on the public submitter leaderboard, so it is never
                 // filled in silently and the user sets it in the settings instead.
-                Utils.showToastLong(str("morphe_aislist_submit_no_username"));
+                Utils.showSnackbarLong(str("morphe_aislist_submit_no_username"));
                 return;
             }
 
-            Utils.showToastShort(str("morphe_aislist_submit_resolving"));
+            Utils.showSnackbarShort(str("morphe_aislist_submit_resolving"));
 
             Utils.runOnBackgroundThread(() -> {
                 String handle = AiSListSubmitRequest.fetchChannelHandle(videoId);
                 if (handle == null) {
-                    Utils.showToastShort(str("morphe_aislist_submit_failed_channel"));
+                    Utils.showSnackbarShort(str("morphe_aislist_submit_failed_channel"));
                     return;
                 }
 
@@ -58,7 +94,7 @@ public final class AiSListSubmitDialog {
                 if (listedIn != null) {
                     // Each list names itself in a whole sentence, because a language that
                     // inflects the list name cannot build one from a substituted noun.
-                    Utils.showToastShort(str(listedIn == AiSListFilter.ListedIn.BLOCKLIST
+                    Utils.showSnackbarShort(str(listedIn == AiSListFilter.ListedIn.BLOCKLIST
                             ? "morphe_aislist_submit_already_blocklisted"
                             : "morphe_aislist_submit_already_warnlisted"));
                     return;
@@ -99,7 +135,7 @@ public final class AiSListSubmitDialog {
             String messageKey = AiSListSubmitRequest.submit(
                     handle, "https://youtu.be/" + videoId, username);
 
-            Utils.showToastShort(str(messageKey));
+            Utils.showSnackbarShort(str(messageKey));
         });
     }
 }

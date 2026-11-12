@@ -1,6 +1,6 @@
 /*
  * Copyright 2026 Morphe.
- * https://github.com/MorpheApp/morphe-patches
+ * https://github.com/MorpheApp/morphe-patches/pull/4114
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  */
@@ -11,9 +11,9 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.Canvas;
 import android.graphics.Path;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.os.Bundle;
@@ -21,7 +21,6 @@ import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.Pair;
 import android.util.TypedValue;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -33,14 +32,17 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
+import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.ResourceType;
 import app.morphe.extension.shared.ResourceUtils;
-import app.morphe.extension.shared.Utils;
 import app.morphe.extension.shared.theme.ThemeUtils;
 import app.morphe.extension.shared.ui.CustomDialog;
+import app.morphe.extension.shared.ui.Dim;
 
 /**
  * A {@link CustomDialogListPreference} that shows a full adaptive-icon preview
@@ -49,28 +51,28 @@ import app.morphe.extension.shared.ui.CustomDialog;
  * Icons are resolved by convention:
  * {@code morphe_adaptive_background_{value}} and {@code morphe_adaptive_foreground_{value}}
  * are layered and rendered to a rounded bitmap. Entries with no matching resources
- * fall back to the app's launcher icon.
+ * use a launcher icon of the app, such as the original icon.
  */
 @SuppressWarnings({"unused", "deprecation"})
 public class IconListPreference extends CustomDialogListPreference {
 
-    public static final int LAYOUT_MORPHE_ICON_LIST_ITEM = ResourceUtils.getIdentifierOrThrow(
-            ResourceType.LAYOUT, "morphe_icon_list_item");
-    public static final int ID_MORPHE_ITEM_ICON = ResourceUtils.getIdentifierOrThrow(
-            ResourceType.ID, "morphe_item_icon");
+    public static final int ID_MORPHE_ITEM_ICON = View.generateViewId();
 
     static final float ICON_SIZE_DP = 48f;
     static final float ICON_CORNER_RADIUS_FRACTION = 0.22f;
 
-    @Nullable
-    private static String originalLauncherIconName;
+    /**
+     * Mipmap resource names of the launcher icons of the app, such as the original unpatched
+     * icon, by the lowercase entry value that uses them.
+     */
+    private static final Map<String, String> appLauncherIconNames = new HashMap<>();
 
     @Nullable
     private static String originalNotificationIconName;
 
     /** Called from CustomBrandingPatch.setBranding() at app startup. */
-    public static void setOriginalLauncherIconName(@Nullable String name) {
-        originalLauncherIconName = name;
+    public static void setAppLauncherIconName(String entryValue, String name) {
+        appLauncherIconNames.put(entryValue.toLowerCase(Locale.US), name);
     }
 
     /** Called from CustomBrandingPatch.setBranding() at app startup. */
@@ -84,19 +86,18 @@ public class IconListPreference extends CustomDialogListPreference {
     }
 
     /**
-     * Resolves the original unpatched launcher icon drawable.
-     * Uses the resource name injected at patch time; falls back to the current app icon.
+     * Resolves the launcher icon of the app that an entry uses, such as the original unpatched icon.
+     * Uses the resource name injected at app startup; falls back to the current app icon.
      */
-    static Drawable resolveOriginalIconDrawable(Context context) {
-        try {
-            if (originalLauncherIconName != null && !originalLauncherIconName.isEmpty()) {
-                int resId = ResourceUtils.getIdentifier(ResourceType.MIPMAP, originalLauncherIconName);
-                if (resId != 0) {
-                    Drawable drawable = context.getDrawable(resId);
-                    if (drawable != null) return drawable;
-                }
+    static Drawable resolveAppLauncherIconDrawable(Context context, String suffix) {
+        String iconName = appLauncherIconNames.get(suffix);
+        if (iconName != null && !iconName.isEmpty()) {
+            int resId = ResourceUtils.getIdentifier(ResourceType.MIPMAP, iconName);
+            if (resId != 0) {
+                Drawable drawable = context.getDrawable(resId);
+                if (drawable != null) return drawable;
             }
-        } catch (Exception ignored) {}
+        }
         return context.getPackageManager().getApplicationIcon(context.getApplicationInfo());
     }
 
@@ -117,15 +118,6 @@ public class IconListPreference extends CustomDialogListPreference {
 
     public IconListPreference(Context context) {
         super(context);
-    }
-
-    /**
-     * Overrides the automatically resolved drawables.
-     * Must be the same length as {@link #getEntryValues()}.
-     * Pass {@code null} to revert to convention-based resolution.
-     */
-    public void setIconDrawables(@Nullable Drawable[] drawables) {
-        this.iconDrawables = drawables;
     }
 
     /**
@@ -171,14 +163,15 @@ public class IconListPreference extends CustomDialogListPreference {
             if (bg != null && fg != null) {
                 source = new LayerDrawable(new Drawable[]{bg, fg});
             } else {
-                // No morphe assets (e.g. ORIGINAL) - use the original unpatched launcher icon.
+                // No morphe assets (e.g. ORIGINAL) - use the launcher icon of the app.
                 source = Objects.requireNonNullElseGet(fg,
                         () -> Objects.requireNonNullElseGet(bg,
-                                () -> resolveOriginalIconDrawable(context)));
+                                () -> resolveAppLauncherIconDrawable(context, suffix)));
             }
 
             return renderToRounded(context.getResources(), source, sizePx, cornerRadius, isAdaptive);
-        } catch (Exception e) {
+        } catch (Exception ex) {
+            Logger.printInfo(() -> "buildIconDrawable failure: " + suffix, ex);
             return null;
         }
     }
@@ -236,7 +229,6 @@ public class IconListPreference extends CustomDialogListPreference {
 
         IconListPreferenceAdapter adapter = new IconListPreferenceAdapter(
                 context,
-                LAYOUT_MORPHE_ICON_LIST_ITEM,
                 entriesToShow,
                 entryValues,
                 getValue(),
@@ -275,13 +267,11 @@ public class IconListPreference extends CustomDialogListPreference {
             String selected = entryValues[position].toString();
             if (callChangeListener(selected)) {
                 setValue(selected);
-                if (getStaticSummary() == null) {
-                    CharSequence[] originalEntries = getEntries();
-                    if (originalEntries != null && position < originalEntries.length) {
-                        setSummary(originalEntries[position]);
-                    }
+                CharSequence[] originalEntries = getEntries();
+                if (originalEntries != null && position < originalEntries.length) {
+                    setSummary(originalEntries[position]);
                 }
-                adapter.setSelectedValue(selected);
+                adapter.selectedValue = selected;
                 adapter.notifyDataSetChanged();
             }
             clearHighlightedEntriesForDialog();
@@ -289,6 +279,25 @@ public class IconListPreference extends CustomDialogListPreference {
         });
 
         dialog.show();
+    }
+
+    /**
+     * The row of {@link CustomDialogListPreference#createCheckedListItem(Context)}
+     * with an icon before the text, found with {@link #ID_MORPHE_ITEM_ICON}.
+     */
+    static LinearLayout createIconListItem(Context context) {
+        LinearLayout row = createCheckedListItem(context, Dim.dp10, Dim.dp12);
+
+        ImageView itemIcon = new ImageView(context);
+        itemIcon.setId(ID_MORPHE_ITEM_ICON);
+        itemIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        itemIcon.setVisibility(View.INVISIBLE);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(Dim.dp48, Dim.dp48);
+        iconParams.setMarginEnd(Dim.dp(14));
+        // Before the text, after the checkmark and its placeholder.
+        row.addView(itemIcon, row.getChildCount() - 1, iconParams);
+
+        return row;
     }
 
     /**
@@ -304,20 +313,17 @@ public class IconListPreference extends CustomDialogListPreference {
             TextView itemText;
         }
 
-        private final int layoutResourceId;
         private final CharSequence[] entryValues;
         private final Drawable[] iconDrawables;
         private String selectedValue;
 
         public IconListPreferenceAdapter(
                 Context context,
-                int resource,
                 CharSequence[] entries,
                 CharSequence[] entryValues,
                 String selectedValue,
                 Drawable[] iconDrawables) {
-            super(context, resource, entries);
-            this.layoutResourceId = resource;
+            super(context, 0, entries);
             this.entryValues = entryValues;
             this.selectedValue = selectedValue;
             this.iconDrawables = iconDrawables;
@@ -330,14 +336,11 @@ public class IconListPreference extends CustomDialogListPreference {
             ViewHolder holder;
 
             if (view == null) {
-                view = LayoutInflater.from(getContext()).inflate(layoutResourceId, parent, false);
+                view = createIconListItem(getContext());
                 holder = new ViewHolder();
                 holder.placeholder = view.findViewById(CustomDialogListPreference.ID_MORPHE_CHECK_ICON_PLACEHOLDER);
                 holder.itemText = view.findViewById(CustomDialogListPreference.ID_MORPHE_ITEM_TEXT);
                 holder.checkIcon = view.findViewById(CustomDialogListPreference.ID_MORPHE_CHECK_ICON);
-                holder.checkIcon.setImageResource(Utils.appIsUsingBoldIcons()
-                        ? CustomDialogListPreference.DRAWABLE_CHECKMARK_BOLD
-                        : CustomDialogListPreference.DRAWABLE_CHECKMARK);
                 holder.itemIcon = view.findViewById(ID_MORPHE_ITEM_ICON);
                 view.setTag(holder);
             } else {
@@ -364,10 +367,6 @@ public class IconListPreference extends CustomDialogListPreference {
             }
 
             return view;
-        }
-
-        public void setSelectedValue(String value) {
-            this.selectedValue = value;
         }
     }
 }

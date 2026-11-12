@@ -31,9 +31,9 @@ public final class VideoInformation {
     private static final Collection<VideoIdListener> videoIdListeners = new CopyOnWriteArrayList<>();
 
     @NonNull
-    private static String videoId = "";
-    private static long videoLength = 0;
-    private static long videoTime = -1;
+    private static volatile String videoId = "";
+    private static volatile long videoLength = 0;
+    private static volatile long videoTime = -1;
 
     /** Injection point. */
     public static void initialize() {
@@ -110,7 +110,11 @@ public final class VideoInformation {
             // Seeking very close to the end causes a seek loop; push past the video end instead.
             final long adjusted = (len - seekTime > 500) ? seekTime : Integer.MAX_VALUE;
             Logger.printDebug(() -> "VideoInformation: seekTo " + adjusted + "ms");
-            return overrideVideoTime(adjusted);
+            final boolean seeked = overrideVideoTime(adjusted);
+            if (seeked && seekTime > 0) {
+                videoTime = seekTime;
+            }
+            return seeked;
         } catch (Exception ex) {
             Logger.printException(() -> "seekTo failed", ex);
             return false;

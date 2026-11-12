@@ -1,37 +1,41 @@
+/*
+ * Copyright 2026 Morphe.
+ * https://github.com/MorpheApp/morphe-patches
+ *
+ * Original hard forked code:
+ * https://github.com/ReVanced/revanced-patches/commit/724e6d61b2ecd868c1a9a37d465a688e83a74799
+ *
+ * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ */
+
 package app.morphe.patches.youtube.interaction.loop
 
-import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
-import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.resourcePatch
+import app.morphe.patcher.patch.patch
 import app.morphe.patches.shared.misc.settings.preference.SwitchPreference
 import app.morphe.patches.youtube.layout.buttons.overlay.addPlayerOverlayPreferences
 import app.morphe.patches.youtube.layout.buttons.overlay.playerOverlayButtonsSettingsPatch
 import app.morphe.patches.youtube.layout.player.buttons.playerOverlayButtonsHookPatch
+import app.morphe.patches.youtube.layout.player.icons.copyPlayerButtonIcons
 import app.morphe.patches.youtube.misc.extension.sharedExtensionPatch
 import app.morphe.patches.youtube.misc.playercontrols.addTopControl
 import app.morphe.patches.youtube.misc.playercontrols.initializeTopControl
 import app.morphe.patches.youtube.misc.playercontrols.legacyPlayerControlsPatch
 import app.morphe.patches.youtube.misc.playercontrols.legacyPlayerControlsResourcePatch
 import app.morphe.patches.youtube.misc.settings.settingsPatch
-import app.morphe.patches.youtube.shared.StartVideoInformerFingerprint
-import app.morphe.util.ResourceGroup
-import app.morphe.util.copyResources
+import app.morphe.patches.youtube.shared.hookVideoStarted
+import app.morphe.patches.youtube.shared.startVideoInformerPatch
 
-private val loopVideoButtonResourcePatch = resourcePatch {
-    dependsOn(legacyPlayerControlsResourcePatch)
+private val loopVideoButtonResourcePatch = patch {
+    dependsOn(
+        legacyPlayerControlsResourcePatch
+    )
 
     execute {
-        copyResources(
+        copyPlayerButtonIcons(
             "loopvideobutton",
-            ResourceGroup(
-                "drawable",
-                "morphe_loop_video_button_on.xml",
-                "morphe_loop_video_button_off.xml",
-                "morphe_loop_video_button_on_bold.xml",
-                "morphe_loop_video_button_off_bold.xml",
-                "morphe_loop_video_button_range.xml",
-                "morphe_loop_video_button_range_bold.xml"
-            )
+            "morphe_loop_video_button_on",
+            "morphe_loop_video_button_off",
+            "morphe_loop_video_button_range"
         )
     }
 
@@ -47,12 +51,13 @@ private val loopVideoButtonResourcePatch = resourcePatch {
 private const val EXTENSION_BUTTON =
     "Lapp/morphe/extension/youtube/videoplayer/LoopVideoButton;"
 
-internal val loopVideoButtonPatch = bytecodePatch(
+internal val loopVideoButtonPatch = patch(
     description = "Adds an option to display loop video button in the video player."
 ) {
     dependsOn(
         sharedExtensionPatch,
         settingsPatch,
+        startVideoInformerPatch,
         loopVideoButtonResourcePatch,
         playerOverlayButtonsSettingsPatch,
         legacyPlayerControlsPatch,
@@ -65,9 +70,6 @@ internal val loopVideoButtonPatch = bytecodePatch(
         )
 
         initializeTopControl(EXTENSION_BUTTON)
-        StartVideoInformerFingerprint.method.addInstruction(
-            0,
-            "invoke-static { }, $EXTENSION_BUTTON->resetLoopButton()V"
-        )
+        hookVideoStarted("$EXTENSION_BUTTON->resetLoopButton()V")
     }
 }

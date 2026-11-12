@@ -9,27 +9,26 @@
 
 package app.morphe.patches.youtube.misc.litho.filter
 
+import app.morphe.patches.shared.misc.litho.context.conversionContextPatch
 import app.morphe.patches.shared.misc.litho.filter.sharedLithoFilterPatch
 import app.morphe.patches.youtube.misc.extension.sharedExtensionPatch
 import app.morphe.patches.youtube.misc.fix.backtoexitgesture.fixBackToExitGesturePatch
 import app.morphe.patches.youtube.misc.fix.verticalscroll.fixVerticalScrollPatch
-import app.morphe.patches.youtube.misc.litho.context.conversionContextPatch
-import app.morphe.patches.youtube.misc.playservice.is_20_22_or_greater
+import app.morphe.patches.youtube.misc.litho.rendernext.disableRenderNextPatch
 import app.morphe.patches.youtube.misc.playservice.is_21_15_or_greater
 import app.morphe.patches.youtube.misc.playservice.versionCheckPatch
 
 val lithoFilterPatch = sharedLithoFilterPatch(
-    // YouTube 20.22+ always uses the native Upb encode path.
-    hookNonNativeBuffer = { !is_20_22_or_greater },
     // Flag was removed in 21.15+.
     overrideUpbFeatureFlag = { !is_21_15_or_greater },
-    useLegacyLithoFiltering = { !is_20_22_or_greater }
+    removeFilteredListItems = true
 ) {
     dependsOn(
         sharedExtensionPatch,
         conversionContextPatch,
         versionCheckPatch,
         fixBackToExitGesturePatch,
-        fixVerticalScrollPatch
+        fixVerticalScrollPatch,
+        disableRenderNextPatch
     )
 }

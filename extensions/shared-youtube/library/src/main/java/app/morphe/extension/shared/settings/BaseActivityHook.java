@@ -10,6 +10,8 @@
 
 package app.morphe.extension.shared.settings;
 
+import static app.morphe.extension.shared.StringRef.str;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
@@ -25,6 +27,7 @@ import app.morphe.extension.shared.ResourceType;
 import app.morphe.extension.shared.ResourceUtils;
 import app.morphe.extension.shared.Utils;
 import app.morphe.extension.shared.patches.SettingsNamePatch;
+import app.morphe.extension.shared.settings.preference.AbstractPreferenceFragment;
 import app.morphe.extension.shared.settings.preference.ToolbarPreferenceFragment;
 import app.morphe.extension.shared.theme.ThemeUtils;
 import app.morphe.extension.shared.ui.Dim;
@@ -37,7 +40,8 @@ import app.morphe.extension.shared.ui.Dim;
 public abstract class BaseActivityHook extends Activity {
 
     public static final String MORPHE_SETTINGS_INTENT = "morphe_settings_intent";
-    private static final int ID_MORPHE_SETTINGS_FRAGMENTS =
+    public static final String MORPHE_DOWNLOADS_INTENT = "morphe_downloads_intent";
+    protected static final int ID_MORPHE_SETTINGS_FRAGMENTS =
             ResourceUtils.getIdentifierOrThrow(ResourceType.ID, "morphe_settings_fragments");
     private static final int ID_MORPHE_TOOLBAR_PARENT =
             ResourceUtils.getIdentifierOrThrow(ResourceType.ID, "morphe_toolbar_parent");
@@ -74,7 +78,8 @@ public abstract class BaseActivityHook extends Activity {
 
             // Sanity check.
             String dataString = activity.getIntent().getDataString();
-            if (!MORPHE_SETTINGS_INTENT.equals(dataString)) {
+            if (!MORPHE_SETTINGS_INTENT.equals(dataString)
+                    && !MORPHE_DOWNLOADS_INTENT.equals(dataString)) {
                 Logger.printException(() -> "Unknown intent: " + dataString);
                 return;
             }
@@ -83,7 +88,7 @@ public abstract class BaseActivityHook extends Activity {
                     && !ENABLE_PREDICTIVE_BACK_ANIMATION) {
                 activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                         android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-                        activity::finish
+                        () -> closeSettings(activity)
                 );
             }
 
@@ -96,6 +101,15 @@ public abstract class BaseActivityHook extends Activity {
                     .commit();
         } catch (Exception ex) {
             Logger.printException(() -> "initialize failure", ex);
+        }
+    }
+
+    /**
+     * Closes the settings, after first showing the restart dialog if a changed setting requires it.
+     */
+    public static void closeSettings(Activity activity) {
+        if (!AbstractPreferenceFragment.showRestartDialogIfNeeded(activity)) {
+            activity.finish();
         }
     }
 
@@ -131,6 +145,7 @@ public abstract class BaseActivityHook extends Activity {
         Toolbar toolbar = new Toolbar(toolBarParent.getContext());
         toolbar.setBackgroundColor(getToolbarBackgroundColor());
         toolbar.setNavigationIcon(getNavigationIcon());
+        toolbar.setNavigationContentDescription(str("morphe_settings_navigate_up"));
         toolbar.setNavigationOnClickListener(getNavigationClickListener(activity));
         toolbar.setTitle(SettingsNamePatch.getSettingsName());
 

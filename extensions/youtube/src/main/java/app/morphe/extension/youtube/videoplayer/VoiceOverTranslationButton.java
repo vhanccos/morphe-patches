@@ -15,10 +15,11 @@ import androidx.annotation.Nullable;
 import java.lang.ref.WeakReference;
 
 import app.morphe.extension.shared.Logger;
+import app.morphe.extension.shared.ResourceUtils;
 import app.morphe.extension.shared.Utils;
 import app.morphe.extension.youtube.patches.LegacyPlayerControlsPatch;
+import app.morphe.extension.youtube.patches.voiceovertranslation.VOTBottomSheet;
 import app.morphe.extension.youtube.patches.voiceovertranslation.VoiceOverTranslationPatch;
-import app.morphe.extension.youtube.patches.voiceovertranslation.VotBottomSheet;
 import app.morphe.extension.youtube.settings.Settings;
 
 @SuppressWarnings("unused")
@@ -40,16 +41,20 @@ public final class VoiceOverTranslationButton {
 
             ImageView button = PlayerOverlayButton.addButton(
                     controlsView,
-                    "morphe_yt_vot_bold",
+                    PlayerIcons.name("morphe_yt_vot"),
                     view -> {
                         VoiceOverTranslationPatch.toggleTranslation();
                         refreshActivatedState();
                     },
                     view -> {
-                        VotBottomSheet.show(view.getContext());
+                        VOTBottomSheet.show(view.getContext());
                         return true;
                     });
             overlayButtonRef = button != null ? new WeakReference<>(button) : null;
+            if (button != null) {
+                button.setContentDescription(ResourceUtils.getString("morphe_vot_screen_title"));
+                PlayerOverlayButton.setToggleAccessibilityDelegate(button, VoiceOverTranslationPatch::isSessionEnabled);
+            }
             refreshActivatedState();
         } catch (Exception ex) {
             Logger.printException(() -> "initializeButton failure", ex);
@@ -75,9 +80,13 @@ public final class VoiceOverTranslationButton {
                         refreshActivatedState();
                     },
                     view -> {
-                        VotBottomSheet.show(view.getContext());
+                        VOTBottomSheet.show(view.getContext());
                         return true;
                     });
+            View legacyButton = Utils.getChildViewByResourceName(controlsView, "morphe_vot_button");
+            if (legacyButton != null) {
+                PlayerOverlayButton.setToggleAccessibilityDelegate(legacyButton, VoiceOverTranslationPatch::isSessionEnabled);
+            }
             refreshActivatedState();
         } catch (Exception ex) {
             Logger.printException(() -> "initializeLegacyButton failure", ex);

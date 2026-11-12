@@ -24,7 +24,6 @@ import androidx.annotation.Nullable;
 
 import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.settings.SharedYouTubeSettings;
-import app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch;
 
 @SuppressWarnings({"deprecation", "unused"})
 public class ExternalPoTokenProviderAboutPreference extends Preference {
@@ -37,7 +36,10 @@ public class ExternalPoTokenProviderAboutPreference extends Preference {
 
         public void onActivityResumed(@NonNull Activity activity) {
             Logger.printDebug(() -> "onActivityResumed");
-            updateUI();
+            String summaryKey = isAvailable()
+                    ? "morphe_external_potoken_provider_settings_summary"
+                    : "morphe_external_potoken_provider_about_summary";
+            setSummary(str(summaryKey));
         }
 
         public void onActivityCreated(@NonNull Activity a, @Nullable Bundle b) {}
@@ -52,35 +54,20 @@ public class ExternalPoTokenProviderAboutPreference extends Preference {
         return SharedYouTubeSettings.EXTERNAL_POTOKEN_PROVIDER.isAvailable();
     }
 
-    private void registerApplicationOnResumeCallback() {
-        SpoofVideoStreamsPatch.getApplication().registerActivityLifecycleCallbacks(
-                ACTIVITY_LIFECYCLE_CALLBACKS
-        );
-    }
-
-    private void unregisterApplicationOnResumeCallback() {
-        SpoofVideoStreamsPatch.getApplication().unregisterActivityLifecycleCallbacks(
-                ACTIVITY_LIFECYCLE_CALLBACKS
-        );
-    }
-
     @Override
     protected void onAttachedToHierarchy(PreferenceManager preferenceManager) {
         super.onAttachedToHierarchy(preferenceManager);
-        registerApplicationOnResumeCallback();
+        ((Application) getContext().getApplicationContext()).registerActivityLifecycleCallbacks(
+                ACTIVITY_LIFECYCLE_CALLBACKS
+        );
     }
 
     @Override
     protected void onPrepareForRemoval() {
         super.onPrepareForRemoval();
-        unregisterApplicationOnResumeCallback();
-    }
-
-    private void updateUI() {
-        String summaryKey = isAvailable()
-                ? "morphe_external_potoken_provider_settings_summary"
-                : "morphe_external_potoken_provider_about_summary";
-        setSummary(str(summaryKey));
+        ((Application) getContext().getApplicationContext()).unregisterActivityLifecycleCallbacks(
+                ACTIVITY_LIFECYCLE_CALLBACKS
+        );
     }
 
     @Override

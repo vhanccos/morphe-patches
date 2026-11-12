@@ -9,14 +9,13 @@ package app.morphe.patches.music.layout.branding.header
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
-import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patches.shared.layout.branding.header.baseChangeHeaderPatch
-import app.morphe.patches.all.misc.resources.ResourceType
-import app.morphe.patches.all.misc.resources.getResourceId
-import app.morphe.patches.all.misc.resources.resourceMappingPatch
+import app.morphe.patcher.patch.patch
+import app.morphe.patcher.resource.ResourceType
+import app.morphe.patcher.resourceLiteral
+import app.morphe.patcher.util.matchAllMethodIndicesForEach
 import app.morphe.patches.music.misc.settings.PreferenceScreen
 import app.morphe.patches.music.shared.Constants.COMPATIBILITY_YOUTUBE_MUSIC
-import app.morphe.util.forEachLiteralValueInstruction
+import app.morphe.patches.shared.layout.branding.header.baseChangeHeaderPatch
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 
 private val targetResourceDirectoryNames = mapOf(
@@ -37,18 +36,16 @@ private val headerDrawableNames = arrayOf(
 private const val EXTENSION_CLASS =
     "Lapp/morphe/extension/music/patches/ChangeHeaderPatch;"
 
-private val changeHeaderBytecodePatch = bytecodePatch {
-    dependsOn(resourceMappingPatch)
-
+private val changeHeaderBytecodePatch = patch {
     execute {
         headerDrawableNames.forEach { drawableName ->
-            val drawableId = getResourceId(ResourceType.DRAWABLE, drawableName)
-
-            forEachLiteralValueInstruction(drawableId) { literalIndex ->
-                val register = getInstruction<OneRegisterInstruction>(literalIndex).registerA
+            resourceLiteral(
+                ResourceType.DRAWABLE, drawableName
+            ).matchAllMethodIndicesForEach(requireMatches = false) { index ->
+                val register = getInstruction<OneRegisterInstruction>(index).registerA
 
                 addInstructions(
-                    literalIndex + 1,
+                    index + 1,
                     """
                         invoke-static { v$register }, $EXTENSION_CLASS->getHeaderDrawableId(I)I
                         move-result v$register

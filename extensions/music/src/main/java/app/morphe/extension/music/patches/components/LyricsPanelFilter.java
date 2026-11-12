@@ -7,8 +7,7 @@
 
 package app.morphe.extension.music.patches.components;
 
-import app.morphe.extension.music.patches.lyrics.LyricsPanelInstaller;
-import app.morphe.extension.music.settings.Settings;
+import app.morphe.extension.music.patches.lyrics.ui.LyricsPanelInstaller;
 import app.morphe.extension.shared.patches.components.BufferAsciiStrings;
 import app.morphe.extension.shared.patches.components.ContextInterface;
 import app.morphe.extension.shared.patches.components.Filter;
@@ -19,29 +18,48 @@ import app.morphe.extension.shared.patches.components.StringFilterGroup;
  *
  * <p>Nothing is hidden here. The filter is only used as a signal, because the
  * timed lyrics component is the earliest reliable indication that the panel the
- * user opened is the lyrics one.
+ * user opened is the lyrics one. Comments being built say the opposite, which is
+ * used for panels the app gives no identifier.
  */
 @SuppressWarnings("unused")
 public final class LyricsPanelFilter extends Filter {
 
+    private final StringFilterGroup timedLyrics = new StringFilterGroup(
+            null,
+            "timed_lyrics"
+    );
+
+    private final StringFilterGroup comments = new StringFilterGroup(
+            null,
+            "comment_thread",
+            "comment_composer",
+            "comment_filter",
+            "comments_header",
+            "comments_simplebox",
+            "community_guidelines",
+            "|comment."
+    );
+
     public LyricsPanelFilter() {
-        addIdentifierCallbacks(new StringFilterGroup(
-                Settings.LYRICS_ENABLED,
-                "timed_lyrics"
-        ));
+        addIdentifierCallbacks(timedLyrics, comments);
+        addPathCallbacks(comments);
     }
 
     @Override
     public boolean isFiltered(ContextInterface contextInterface,
                               String identifier,
                               String accessibility,
-                              String path,
+                              CharSequence path,
                               byte[] buffer,
                               BufferAsciiStrings asciiStrings,
                               StringFilterGroup matchedGroup,
                               FilterContentType contentType,
                               int contentIndex) {
-        LyricsPanelInstaller.onLyricsPanelDetected();
+        if (matchedGroup == comments) {
+            LyricsPanelInstaller.onOtherPanelDetected();
+        } else {
+            LyricsPanelInstaller.onLyricsPanelDetected();
+        }
         return false;
     }
 }

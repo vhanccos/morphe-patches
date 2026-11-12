@@ -25,7 +25,6 @@ import app.morphe.extension.shared.oauth2.object.ActivationCodeData;
 import app.morphe.extension.shared.oauth2.requests.OAuth2Requester;
 import app.morphe.extension.shared.settings.Setting;
 import app.morphe.extension.shared.settings.SharedYouTubeSettings;
-import app.morphe.extension.shared.spoof.SpoofVideoStreamsPatch;
 import app.morphe.extension.shared.ui.CustomDialog;
 
 @SuppressWarnings("deprecation")
@@ -117,14 +116,8 @@ public abstract class OAuth2Preference extends Preference implements Preference.
         public void onActivityDestroyed(@NonNull Activity a) {}
     };
 
-    private void registerApplicationOnResumeCallback() {
-        SpoofVideoStreamsPatch.getApplication().registerActivityLifecycleCallbacks(
-                ACTIVITY_LIFECYCLE_CALLBACKS
-        );
-    }
-
     private void unregisterApplicationOnResumeCallback() {
-        SpoofVideoStreamsPatch.getApplication().unregisterActivityLifecycleCallbacks(
+        ((Application) getContext().getApplicationContext()).unregisterActivityLifecycleCallbacks(
                 ACTIVITY_LIFECYCLE_CALLBACKS
         );
     }
@@ -133,23 +126,15 @@ public abstract class OAuth2Preference extends Preference implements Preference.
     protected void onAttachedToHierarchy(PreferenceManager preferenceManager) {
         super.onAttachedToHierarchy(preferenceManager);
         updateUI();
-        addChangeListener();
+        Setting.preferences.preferences.registerOnSharedPreferenceChangeListener(listener);
     }
 
     @Override
     protected void onPrepareForRemoval() {
         super.onPrepareForRemoval();
-        removeChangeListener();
+        Setting.preferences.preferences.unregisterOnSharedPreferenceChangeListener(listener);
         // Remove just in case the user never finished signing in.
         unregisterApplicationOnResumeCallback();
-    }
-
-    private void addChangeListener() {
-        Setting.preferences.preferences.registerOnSharedPreferenceChangeListener(listener);
-    }
-
-    private void removeChangeListener() {
-        Setting.preferences.preferences.unregisterOnSharedPreferenceChangeListener(listener);
     }
 
     protected boolean isRefreshTokenSaved() {
@@ -220,7 +205,7 @@ public abstract class OAuth2Preference extends Preference implements Preference.
         } else {
             titleKey = "morphe_spoof_video_streams_sign_in_android_vr_dialog_title";
             messageKey = "morphe_spoof_video_streams_sign_in_android_vr_dialog_not_signed_in_message";
-            okButtonTextKey = "morphe_spoof_video_streams_sign_in_android_vr_dialog_continue";
+            okButtonTextKey = "gms_core_dialog_continue_text";
             okButtonRunnable = this::showActivationCodeDialog;
         }
 
@@ -276,7 +261,7 @@ public abstract class OAuth2Preference extends Preference implements Preference.
                         // No EditText.
                         null,
                         // OK button text.
-                        str("morphe_spoof_video_streams_sign_in_android_vr_activation_code_dialog_open_website"),
+                        str("gms_core_dialog_open_website_text"),
                         // OK button action.
                         () -> openInBrowser(context, userCode, verificationUrl),
                         // Cancel button action (dismiss only).
@@ -372,7 +357,9 @@ public abstract class OAuth2Preference extends Preference implements Preference.
 
     private void openInBrowser(Context context, String userCode, String verificationUrl) {
         // Automatically fetch the auth token after the user returns.
-        registerApplicationOnResumeCallback();
+        ((Application) getContext().getApplicationContext()).registerActivityLifecycleCallbacks(
+                ACTIVITY_LIFECYCLE_CALLBACKS
+        );
         Utils.setClipboard(userCode);
         Intent baseIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(verificationUrl));
 

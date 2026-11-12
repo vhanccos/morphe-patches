@@ -1,49 +1,52 @@
 /*
  * Copyright 2026 Morphe.
- * https://github.com/MorpheApp/morphe-patches
+ * https://github.com/MorpheApp/morphe-patches/pull/1274
+ * https://github.com/MorpheApp/morphe-patches/pull/4016
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
  */
 
 package app.morphe.patches.youtube.interaction.savetowatchlater
 
-import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.resourcePatch
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.patch.patch
+import app.morphe.patches.shared.misc.settings.preference.NonInteractivePreference
 import app.morphe.patches.shared.misc.settings.preference.SwitchPreference
 import app.morphe.patches.shared.misc.settings.preference.noTitleUnsortedPreferenceCategory
 import app.morphe.patches.youtube.layout.buttons.overlay.addPlayerOverlayPreferences
 import app.morphe.patches.youtube.layout.buttons.overlay.playerOverlayButtonsSettingsPatch
+import app.morphe.patches.youtube.layout.flyout.flyoutPatch
+import app.morphe.patches.youtube.layout.player.icons.copyPlayerButtonIcons
+import app.morphe.patches.youtube.layout.player.icons.copyPlayerIconStyles
 import app.morphe.patches.youtube.misc.auth.authHookPatch
 import app.morphe.patches.youtube.misc.extension.sharedExtensionPatch
+import app.morphe.patches.youtube.misc.loadvideo.loadVideoHookPatch
 import app.morphe.patches.youtube.misc.playercontrols.addTopControl
 import app.morphe.patches.youtube.misc.playercontrols.initializeTopControl
 import app.morphe.patches.youtube.misc.playercontrols.legacyPlayerControlsPatch
+import app.morphe.patches.youtube.misc.settings.PreferenceScreen
 import app.morphe.patches.youtube.misc.settings.settingsPatch
 import app.morphe.patches.youtube.shared.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patches.youtube.video.information.videoInformationPatch
-import app.morphe.util.ResourceGroup
-import app.morphe.util.copyResources
+import app.morphe.util.setExtensionIsPatchIncluded
 
-private val saveToWatchLaterButtonResourcePatch = resourcePatch {
+private val saveToWatchLaterButtonResourcePatch = patch {
     execute {
-        copyResources(
-            "savetowatchlaterbutton",
-            ResourceGroup(
-                resourceDirectoryName = "drawable",
-                "morphe_save_to_watch_later_button.xml",
-                "morphe_save_to_watch_later_button_bold.xml",
-            )
-        )
+        copyPlayerButtonIcons("savetowatchlaterbutton", "morphe_save_to_watch_later_button")
+        copyPlayerIconStyles("savetowatchlaterbutton", "morphe_add_to_queue_button")
     }
 }
 
 private const val EXTENSION_BUTTON =
     "Lapp/morphe/extension/youtube/videoplayer/SaveToWatchLaterButton;"
+private const val EXTENSION_CLASS =
+    "Lapp/morphe/extension/youtube/patches/SaveToWatchLaterPatch;"
 
 @Suppress("unused")
-val saveToWatchLaterButtonPatch = bytecodePatch(
+val saveToWatchLaterButtonPatch = patch(
     name = "Save to Watch later",
-    description = "Adds an option to display save to Watch later button in the video player.",
+    description = "Adds an option to display save to Watch later button in the video player, " +
+        "and adds a setting to redirect Watch later saves to a playlist of your choice.",
 ) {
     dependsOn(
         saveToWatchLaterButtonResourcePatch,
@@ -53,7 +56,9 @@ val saveToWatchLaterButtonPatch = bytecodePatch(
         sharedExtensionPatch,
         videoInformationPatch,
         authHookPatch,
-        bytecodePatch {
+        flyoutPatch,
+        loadVideoHookPatch,
+        patch {
             finalize {
                 addTopControl(
                     "savetowatchlaterbutton",
@@ -70,12 +75,38 @@ val saveToWatchLaterButtonPatch = bytecodePatch(
         addPlayerOverlayPreferences(
             noTitleUnsortedPreferenceCategory(
                 SwitchPreference("morphe_save_to_watch_later_button", summary = true),
-                SwitchPreference("morphe_save_to_watch_later_kids_flyout_button", summary = true),
                 SwitchPreference("morphe_swap_save_and_queue_actions", summary = true),
                 SwitchPreference("morphe_queue_restore", summary = true)
             )
         )
 
+        PreferenceScreen.PLAYER.addPreferences(
+            SwitchPreference("morphe_save_to_watch_later_flyout_button", summary = true),
+            NonInteractivePreference(
+                "morphe_save_to_watch_later_redirect_playlist_id",
+                tag = "app.morphe.extension.youtube.settings.preference.WatchLaterPlaylistPreference",
+                selectable = true
+            )
+        )
+
         initializeTopControl(EXTENSION_BUTTON)
+
+        setExtensionIsPatchIncluded(EXTENSION_CLASS)
+
+        EditPlaylistRequestBuildFingerprint.let {
+            val playlistIdField = it.instructionMatches[0].fieldReference
+            val actionsField = it.instructionMatches[1].fieldReference
+
+            it.method.addInstructions(
+                0,
+                """
+                    iget-object v0, p0, $playlistIdField
+                    iget-object v1, p0, $actionsField
+                    invoke-static { v0, v1 }, $EXTENSION_CLASS->getEditPlaylistId(Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
+                    move-result-object v0
+                    iput-object v0, p0, $playlistIdField
+                """
+            )
+        }
     }
 }

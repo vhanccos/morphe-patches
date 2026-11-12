@@ -11,12 +11,10 @@
 package app.morphe.extension.youtube.videoplayer;
 
 import static app.morphe.extension.shared.StringRef.str;
-import static app.morphe.extension.shared.settings.preference.CustomDialogListPreference.DRAWABLE_CHECKMARK;
-import static app.morphe.extension.shared.settings.preference.CustomDialogListPreference.DRAWABLE_CHECKMARK_BOLD;
 import static app.morphe.extension.shared.settings.preference.CustomDialogListPreference.ID_MORPHE_CHECK_ICON;
 import static app.morphe.extension.shared.settings.preference.CustomDialogListPreference.ID_MORPHE_CHECK_ICON_PLACEHOLDER;
 import static app.morphe.extension.shared.settings.preference.CustomDialogListPreference.ID_MORPHE_ITEM_TEXT;
-import static app.morphe.extension.shared.settings.preference.CustomDialogListPreference.LAYOUT_MORPHE_CUSTOM_LIST_ITEM_CHECKED;
+import static app.morphe.extension.shared.settings.preference.CustomDialogListPreference.createCheckedListItem;
 
 import android.content.Context;
 import android.graphics.Typeface;
@@ -24,7 +22,6 @@ import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.UnderlineSpan;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -51,7 +48,6 @@ import app.morphe.extension.youtube.patches.VideoInformation.VideoQualityInterfa
 import app.morphe.extension.youtube.patches.playback.quality.RememberVideoQualityPatch;
 import app.morphe.extension.youtube.settings.Settings;
 import app.morphe.extension.youtube.shared.PipDismissHelper;
-import kotlin.Unit;
 
 @SuppressWarnings("unused")
 public class VideoQualityDialogButton {
@@ -67,7 +63,6 @@ public class VideoQualityDialogButton {
     static {
         VideoInformation.onQualityChange.addObserver((@Nullable VideoQualityInterface quality) -> {
             updateButtonText(quality);
-            return Unit.INSTANCE;
         });
     }
 
@@ -148,7 +143,7 @@ public class VideoQualityDialogButton {
                     if (resolution != VideoInformation.AUTOMATIC_VIDEO_QUALITY_VALUE &&
                             resolution <= defaultResolution) {
                         Logger.printDebug(() -> "Resetting quality to: " + quality);
-                        VideoInformation.changeQuality(quality);
+                        VideoInformation.changeQuality(RememberVideoQualityPatch.getPlayableQuality(quality));
                         return true;
                     }
                 }
@@ -179,20 +174,11 @@ public class VideoQualityDialogButton {
                     : quality.patch_getResolution();
 
             SpannableStringBuilder text = new SpannableStringBuilder();
-            String qualityText = switch (resolution) {
-                case VideoInformation.AUTOMATIC_VIDEO_QUALITY_VALUE -> "";
-                case 144, 240, 360 -> "LD";
-                case 480  -> "SD";
-                case 720  -> "HD";
-                case 1080 -> "FHD";
-                case 1440 -> "QHD";
-                case 2160 -> "4K";
-                default   -> "?"; // Should never happen.
-            };
+            String qualityText = qualityText(resolution);
             text.append(qualityText);
 
             if (quality != null && VideoInformation.isPremiumVideoQuality(quality)) {
-                // Underline the entire "FHD" text for 1080p Premium.
+                // Underline the entire "FHD" or "1080" text for 1080p Premium.
                 text.setSpan(new UnderlineSpan(), 0, qualityText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
 
@@ -208,6 +194,21 @@ public class VideoQualityDialogButton {
         } catch (Exception ex) {
             Logger.printException(() -> "updateButtonText failure", ex);
         }
+    }
+
+    private static String qualityText(int resolution) {
+        if (resolution == VideoInformation.AUTOMATIC_VIDEO_QUALITY_VALUE) return "";
+        if (Settings.VIDEO_QUALITY_DIALOG_BUTTON_RESOLUTION.get()) return String.valueOf(resolution);
+
+        return switch (resolution) {
+            case 144, 240, 360 -> "LD";
+            case 480  -> "SD";
+            case 720  -> "HD";
+            case 1080 -> "FHD";
+            case 1440 -> "QHD";
+            case 2160 -> "4K";
+            default   -> "?"; // Should never happen.
+        };
     }
 
     /**
@@ -294,7 +295,8 @@ public class VideoQualityDialogButton {
             // Create ListView for quality selection.
             ListView listView = new ListView(context);
             CustomQualityAdapter adapter = new CustomQualityAdapter(context, qualityLabels);
-            adapter.setSelectedPosition(listViewSelectedIndex);
+            adapter.selectedPosition = listViewSelectedIndex;
+            adapter.notifyDataSetChanged();
             listView.setAdapter(adapter);
             listView.setDivider(null);
 
@@ -305,9 +307,8 @@ public class VideoQualityDialogButton {
             listView.setOnItemClickListener((parent, view, which, id) -> {
                 try {
                     final int originalIndex = which + 1; // Adjust for automatic.
-                    VideoQualityInterface selectedQuality = currentQualities[originalIndex];
-                    RememberVideoQualityPatch.userChangedQuality(selectedQuality.patch_getResolution());
-                    VideoInformation.changeQuality(selectedQuality);
+                    VideoInformation.changeQuality(
+                            RememberVideoQualityPatch.userChangedQuality(currentQualities[originalIndex]));
 
                     dialog.dismiss();
                 } catch (Exception ex) {
@@ -346,22 +347,13 @@ public class VideoQualityDialogButton {
             super(context, 0, objects);
         }
 
-        private void setSelectedPosition(int position) {
-            this.selectedPosition = position;
-            notifyDataSetChanged();
-        }
-
         @NonNull
         @Override
         public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
             ViewHolder viewHolder;
 
             if (convertView == null) {
-                convertView = LayoutInflater.from(getContext()).inflate(
-                        LAYOUT_MORPHE_CUSTOM_LIST_ITEM_CHECKED,
-                        parent,
-                        false
-                );
+                convertView = createCheckedListItem(getContext());
                 viewHolder = new ViewHolder();
                 viewHolder.checkIcon = convertView.findViewById(ID_MORPHE_CHECK_ICON);
                 viewHolder.placeholder = convertView.findViewById(ID_MORPHE_CHECK_ICON_PLACEHOLDER);
@@ -378,9 +370,6 @@ public class VideoQualityDialogButton {
             final boolean isSelected = position == selectedPosition;
             viewHolder.checkIcon.setVisibility(isSelected ? View.VISIBLE : View.GONE);
             viewHolder.placeholder.setVisibility(isSelected ? View.GONE : View.INVISIBLE);
-            viewHolder.checkIcon.setImageResource(Utils.appIsUsingBoldIcons()
-                    ? DRAWABLE_CHECKMARK_BOLD
-                    : DRAWABLE_CHECKMARK);
 
             return convertView;
         }

@@ -15,11 +15,12 @@ import app.morphe.patches.shared.misc.settings.preference.NonInteractivePreferen
 import app.morphe.patches.shared.misc.settings.preference.PreferenceScreenPreference
 import app.morphe.patches.shared.misc.settings.preference.SwitchPreference
 import app.morphe.patches.shared.misc.spoof.spoofVideoStreamsPatch
+import app.morphe.patches.youtube.misc.extension.hooks.YouTubeApplicationInitFingerprint
 import app.morphe.patches.youtube.misc.extension.sharedExtensionPatch
 import app.morphe.patches.youtube.misc.playservice.is_20_31_or_greater
 import app.morphe.patches.youtube.misc.playservice.is_20_35_or_greater
 import app.morphe.patches.youtube.misc.playservice.is_20_39_or_greater
-import app.morphe.patches.youtube.misc.playservice.is_21_13_or_greater
+import app.morphe.patches.youtube.misc.playservice.is_21_11_or_greater
 import app.morphe.patches.youtube.misc.playservice.versionCheckPatch
 import app.morphe.patches.youtube.misc.settings.PreferenceScreen
 import app.morphe.patches.youtube.misc.settings.settingsPatch
@@ -28,11 +29,10 @@ import app.morphe.patches.youtube.shared.YouTubeActivityOnCreateFingerprint
 
 val spoofVideoStreamsPatch = spoofVideoStreamsPatch(
     extensionClass = "Lapp/morphe/extension/youtube/patches/spoof/SpoofVideoStreamsPatch;",
-    mainActivityOnCreateFingerprint = YouTubeActivityOnCreateFingerprint,
-    fixMediaFetchHotConfigAlternative = {
-        // In 20.14 the flag was merged with 20.03 start playback flag.
-        false
-    },
+    mainActivityOnCreateFingerprints = listOf(
+        YouTubeActivityOnCreateFingerprint,
+        YouTubeApplicationInitFingerprint
+    ),
     fixParsePlaybackResponseFeatureFlag = {
         true
     },
@@ -44,7 +44,8 @@ val spoofVideoStreamsPatch = spoofVideoStreamsPatch(
         // but only recently has been causing issues.
         is_20_31_or_greater
     },
-    restoreMissingCuepointMethod = { is_20_35_or_greater && !is_21_13_or_greater },
+    // 21.11 and 21.12 do not have the cuepoint list class, and pass the cuepoint list as bytes.
+    restoreMissingCuepointMethod = { is_20_35_or_greater && !is_21_11_or_greater },
 
     block = {
         compatibleWith(COMPATIBILITY_YOUTUBE)

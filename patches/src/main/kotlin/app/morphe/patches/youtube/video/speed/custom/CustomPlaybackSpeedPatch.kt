@@ -1,6 +1,5 @@
 /*
  * Copyright 2026 Morphe.
- * https://github.com/MorpheApp/morphe-patches
  * https://github.com/MorpheApp/morphe-patches/pull/2282
  *
  * Original hard forked code:
@@ -17,12 +16,12 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLa
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
-import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.resourcePatch
+import app.morphe.patcher.patch.patch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableField
 import app.morphe.patcher.util.proxy.mutableTypes.MutableField.Companion.toMutable
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
-import app.morphe.patches.all.misc.resources.resourceMappingPatch
+import app.morphe.patcher.util.returnEarly
+import app.morphe.patches.shared.misc.litho.context.conversionContextPatch
 import app.morphe.patches.shared.misc.litho.filter.addLithoFilter
 import app.morphe.patches.shared.misc.settings.preference.InputType
 import app.morphe.patches.shared.misc.settings.preference.SwitchPreference
@@ -30,7 +29,6 @@ import app.morphe.patches.shared.misc.settings.preference.TextPreference
 import app.morphe.patches.shared.misc.textcomponent.hookSpannableString
 import app.morphe.patches.shared.misc.textcomponent.textComponentPatch
 import app.morphe.patches.youtube.misc.extension.sharedExtensionPatch
-import app.morphe.patches.youtube.misc.litho.context.conversionContextPatch
 import app.morphe.patches.youtube.misc.litho.filter.lithoFilterPatch
 import app.morphe.patches.youtube.misc.playservice.is_20_34_or_greater
 import app.morphe.patches.youtube.misc.playservice.is_21_02_or_greater
@@ -47,11 +45,11 @@ import app.morphe.patches.youtube.video.speed.settingsMenuVideoSpeedGroup
 import app.morphe.util.ResourceGroup
 import app.morphe.util.addInstructionsAtControlFlowLabel
 import app.morphe.util.copyResources
-import app.morphe.util.getReference
+import app.morphe.util.findInstructionIndicesReversedOrThrow
 import app.morphe.util.indexOfFirstLiteralInstructionOrThrow
 import app.morphe.util.insertLiteralOverride
-import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
+import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
@@ -65,7 +63,7 @@ internal const val EXTENSION_CLASS =
 private const val EXTENSION_FILTER =
     "Lapp/morphe/extension/youtube/patches/components/PlaybackSpeedMenuFilter;"
 
-private val customPlaybackSpeedResourcePatch = resourcePatch {
+private val customPlaybackSpeedResourcePatch = patch {
     execute {
         copyResources(
             "speed",
@@ -80,7 +78,7 @@ private val customPlaybackSpeedResourcePatch = resourcePatch {
     }
 }
 
-internal val customPlaybackSpeedPatch = bytecodePatch(
+internal val customPlaybackSpeedPatch = patch(
     description = "Adds custom playback speed options.",
 ) {
     dependsOn(
@@ -92,7 +90,6 @@ internal val customPlaybackSpeedPatch = bytecodePatch(
         textComponentPatch,
         recyclerViewTreeHookPatch,
         customPlaybackSpeedResourcePatch,
-        resourceMappingPatch
     )
 
     execute {
@@ -231,7 +228,7 @@ internal val customPlaybackSpeedPatch = bytecodePatch(
 
                     onItemClickClass = definingClass
                     fragmentManagerMethod = it.instructionMatches.first()
-                        .instruction.getReference<MethodReference>()!!
+                        .methodReference
 
                     val insertIndex = implementation!!.instructions.lastIndex
 
@@ -247,8 +244,7 @@ internal val customPlaybackSpeedPatch = bytecodePatch(
             val bottomSheetBuilderMethodCall : String
             AudioTrackOldBottomSheetFingerprint.instructionMatches.apply {
                 fun getMethodCall(offset: Int):String {
-                    val methodReference =
-                        this[offset].instruction.getReference<MethodReference>()!!
+                    val methodReference = this[offset].methodReference
 
                     return methodReference.toString()
                         .replace(methodReference.definingClass, onItemClickClass)
@@ -348,10 +344,10 @@ internal val customPlaybackSpeedPatch = bytecodePatch(
         // region Custom tap and hold 2x speed.
 
         TapAndHoldSpeedFingerprint.let {
+            it.clearMatch()
             it.method.apply {
                 val speedIndex = it.instructionMatches.last().index
-                val speedRegister =
-                    getInstruction<OneRegisterInstruction>(speedIndex).registerA
+                val speedRegister = getInstruction<OneRegisterInstruction>(speedIndex).registerA
 
                 addInstructions(
                     speedIndex + 1,
@@ -379,6 +375,26 @@ internal val customPlaybackSpeedPatch = bytecodePatch(
             methodName = "onSeekEduOverlayLoaded",
             overrideSpan = true
         )
+
+        // endregion
+
+        // region Disable audio offload if audio pitch controls are enabled.
+
+        // With audio offload, the device hardware decodes the audio
+        // and usually does not support changing the pitch, so the selected pitch is ignored.
+        AudioOffloadEnabledFingerprint.method.apply {
+            findInstructionIndicesReversedOrThrow(Opcode.RETURN).forEach { index ->
+                val register = getInstruction<OneRegisterInstruction>(index).registerA
+
+                addInstructionsAtControlFlowLabel(
+                    index,
+                    """
+                        invoke-static { v$register }, $EXTENSION_CLASS->disableAudioOffload(Z)Z
+                        move-result v$register
+                    """
+                )
+            }
+        }
 
         // endregion
     }
