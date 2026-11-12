@@ -1,3 +1,9 @@
+## [2.0.1](https://github.com/vhanccos/morphe-patches/compare/v2.0.0...v2.0.1) (2026-11-12)
+
+### 🐛 Bug Fixes
+
+* publish fork patches bundle ([aaacfa6](https://github.com/vhanccos/morphe-patches/commit/aaacfa6b49cf2a7ed7f137b5593a8c4eab76b6f0))
+
 ## [2.0.0](https://github.com/vhanccos/morphe-patches/compare/v1.43.1...v2.0.0) (2026-11-12)
 
 ### ⚠ BREAKING CHANGES
